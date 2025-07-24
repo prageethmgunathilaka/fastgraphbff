@@ -16,12 +16,20 @@ export interface Workflow {
   metrics: WorkflowMetrics
   creator: string
   configuration: WorkflowConfiguration
+  // Additional properties used in the application
+  completedTasks?: number
+  totalTasks?: number
+  currentPhase?: string
+  statusChangeReason?: string
+  metadata?: Record<string, any>
+  statusHistory?: { status: WorkflowStatus; timestamp: string; reason?: string; previousStatus?: string; metadata?: Record<string, any> }[]
 }
 
 export interface Agent {
   id: string
   workflowId: string
   name: string
+  description?: string // Added description property
   type: AgentType
   status: AgentStatus
   createdAt: string
@@ -34,6 +42,12 @@ export interface Agent {
   performance: AgentPerformance
   logs: LogEntry[]
   results: AgentResult[]
+  // Additional properties used in the application
+  statusHistory?: { status: AgentStatus; timestamp: string; reason?: string; previousStatus?: string }[]
+  statusChangeReason?: string
+  metadata?: Record<string, any>
+  currentPhase?: string
+  estimatedTimeRemaining?: number
 }
 
 export interface WorkflowMetrics {
@@ -93,6 +107,7 @@ export interface WorkflowConfiguration {
 export interface LogEntry {
   id: string
   agentId: string
+  workflowId?: string // Added workflowId property
   timestamp: string
   level: LogLevel
   message: string
@@ -103,11 +118,16 @@ export interface LogEntry {
 export interface AgentResult {
   id: string
   agentId: string
+  workflowId?: string // Added workflowId property
   timestamp: string
   type: ResultType
   data: any
   metadata: Record<string, any>
   quality: QualityMetrics
+  // Additional properties used for performance tracking
+  executionTime?: number
+  memoryUsage?: number
+  cpuUsage?: number
 }
 
 export interface QualityMetrics {

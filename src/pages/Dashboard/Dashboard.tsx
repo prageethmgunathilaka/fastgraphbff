@@ -20,7 +20,6 @@ import {
   Refresh,
   SmartToy,
   Assessment,
-  Speed,
   Error,
 } from '@mui/icons-material'
 import { useAppSelector, useAppDispatch } from '../../store'

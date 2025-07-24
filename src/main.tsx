@@ -7,9 +7,9 @@ import { QueryClient, QueryClientProvider } from 'react-query'
 import { HelmetProvider } from 'react-helmet-async'
 import { Toaster } from 'react-hot-toast'
 
-import App from './App.tsx'
-import { store } from './store/index.ts'
-import { theme } from './theme/index.ts'
+import App from './App'
+import { store } from './store'
+import { theme } from './theme'
 
 // Create a client for React Query
 const queryClient = new QueryClient({

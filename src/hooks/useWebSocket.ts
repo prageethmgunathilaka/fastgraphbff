@@ -14,7 +14,7 @@ import {
   eventProcessingFailed,
 } from '../store/slices/websocketSlice'
 import { updateWorkflowProgress, updateWorkflowStatus } from '../store/slices/workflowSlice'
-import { updateAgentStatus, updateAgentProgress, addLogEntry, addResult } from '../store/slices/agentSlice'
+import { updateAgentStatus, addLogEntry, addResult } from '../store/slices/agentSlice'
 import { updateMetric, updateSystemMetrics } from '../store/slices/analyticsSlice'
 import { addNotification } from '../store/slices/uiSlice'
 import {
@@ -26,7 +26,7 @@ import {
   WebSocketMessage,
   ErrorSeverity,
 } from '../types/websocket'
-import { WorkflowStatus } from '../types/core'
+import { WorkflowStatus, AgentStatus } from '../types/core'
 
 const WS_URL = process.env.REACT_APP_WS_URL || 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws'
 
@@ -155,7 +155,7 @@ export const useWebSocket = () => {
           } else if (event.data.entityType === 'agent') {
             dispatch(updateAgentStatus({
               agentId: event.data.entityId,
-              status: event.data.newStatus,
+              status: event.data.newStatus as AgentStatus,
               previousStatus: event.data.previousStatus,
               reason: event.data.reason,
               metadata: event.data.metadata,

@@ -7,6 +7,7 @@ interface Notification {
   message: string
   timestamp: string
   read: boolean
+  duration?: number // Optional duration in milliseconds for auto-dismiss
   actions?: { label: string; action: string }[]
 }
 
