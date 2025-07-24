@@ -5,11 +5,7 @@ import { Helmet } from 'react-helmet-async'
 
 import Layout from './components/Layout/Layout'
 import Dashboard from './pages/Dashboard/Dashboard'
-import WorkflowMonitoring from './pages/WorkflowMonitoring/WorkflowMonitoring'
-import Analytics from './pages/Analytics/Analytics'
-import AgentManagement from './pages/AgentManagement/AgentManagement'
-import Reports from './pages/Reports/Reports'
-import Settings from './pages/Settings/Settings'
+import { Analytics, AgentManagement, Reports, Settings, WorkflowMonitoring } from './pages'
 
 // WebSocket connection management
 import { useWebSocket } from './hooks/useWebSocket'
