@@ -44,4 +44,19 @@ jest.mock('../utils/env', () => ({
   getApiBaseUrl: () => 'https://api.fastgraph.example.com/v1',
   getWebSocketUrl: () => 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws',
   isProduction: () => false
-})) 
+}))
+
+// Suppress React act() warnings in test environment
+// These warnings occur due to Material-UI components and async state updates
+// They don't indicate actual application bugs
+const originalError = console.error
+console.error = (...args: any[]) => {
+  if (
+    typeof args[0] === 'string' && 
+    args[0].includes('Warning: An update to') && 
+    args[0].includes('inside a test was not wrapped in act')
+  ) {
+    return // Suppress act warnings
+  }
+  originalError.call(console, ...args)
+} 
