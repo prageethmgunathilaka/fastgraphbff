@@ -309,6 +309,12 @@ const workflowSlice = createSlice({
       .addCase(fetchWorkflows.fulfilled, (state, action) => {
         state.loading = false
         
+        // Handle case where payload or workflows might be undefined
+        if (!action.payload || !action.payload.workflows || !Array.isArray(action.payload.workflows)) {
+          console.warn('fetchWorkflows.fulfilled: Invalid payload structure', action.payload)
+          return
+        }
+        
         // Convert array to record and enhance with real-time tracking
         const workflowsRecord = action.payload.workflows.reduce((acc, workflow: any) => {
           // Transform backend data format to frontend format
