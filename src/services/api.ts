@@ -1,5 +1,6 @@
 ﻿import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { Workflow, Agent } from '../types/core'
+import { getApiBaseUrl } from '../utils/env'
 
 // API Response Types
 interface DashboardMetricsResponse {
@@ -39,7 +40,7 @@ interface HealthResponse {
 }
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.fastgraph.example.com/v1'
+const API_BASE_URL = getApiBaseUrl()
 
 class ApiClient {
   protected client: AxiosInstance

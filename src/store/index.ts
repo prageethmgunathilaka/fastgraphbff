@@ -1,5 +1,6 @@
 ﻿import { configureStore } from '@reduxjs/toolkit'
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
+import { isProduction } from '../utils/env'
 
 import workflowSlice from './slices/workflowSlice'
 import agentSlice from './slices/agentSlice'
@@ -22,7 +23,7 @@ export const store = configureStore({
         ignoredPaths: ['websocket.eventBuffer'],
       },
     }),
-  devTools: !import.meta.env.PROD,
+  devTools: !isProduction(),
 })
 
 export type RootState = ReturnType<typeof store.getState>

@@ -37,4 +37,11 @@ if (typeof global.crypto === 'undefined') {
       })
     },
   } as any
-} 
+}
+
+// Mock environment utilities for tests
+jest.mock('../utils/env', () => ({
+  getApiBaseUrl: () => 'https://api.fastgraph.example.com/v1',
+  getWebSocketUrl: () => 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws',
+  isProduction: () => false
+})) 

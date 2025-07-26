@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useCallback } from 'react'
 import { useAppDispatch, useAppSelector } from '../store'
+import { getWebSocketUrl } from '../utils/env'
 import {
   connectionStatusChanged,
   reconnectAttempted,
@@ -28,7 +29,7 @@ import {
 } from '../types/websocket'
 import { WorkflowStatus, AgentStatus } from '../types/core'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws'
+const WS_URL = getWebSocketUrl()
 
 // Event processing configuration
 const EVENT_PROCESSING_CONFIG = {
