@@ -131,6 +131,13 @@ export class MockWebSocket {
     }
   }
 
+  simulateInvalidMessage(invalidData: string) {
+    if (this.onmessage && this.readyState === MockWebSocket.OPEN) {
+      // Send raw invalid JSON string (not JSON.stringify'd)
+      this.onmessage(new MessageEvent('message', { data: invalidData }))
+    }
+  }
+
   simulateOpen() {
     this.readyState = MockWebSocket.OPEN
     if (this.onopen) {

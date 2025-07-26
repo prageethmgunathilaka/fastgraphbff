@@ -374,7 +374,7 @@ describe('Enhanced WebSocket Integration Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('total-processed')).toHaveTextContent('1')
-        expect(screen.getByTestId('system-metrics')).toContain('eventProcessing')
+        expect(screen.getByTestId('system-metrics')).toHaveTextContent('eventProcessing')
       })
 
       // Test with invalid metrics
@@ -486,7 +486,8 @@ describe('Enhanced WebSocket Integration Tests', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('total-processed')).toHaveTextContent('5')
-        expect(screen.getByTestId('avg-processing-time')).not.toHaveTextContent('0')
+        const avgProcessingTime = screen.getByTestId('avg-processing-time').textContent
+        expect(parseFloat(avgProcessingTime || '0')).toBeGreaterThan(0)
       })
     })
   })
