@@ -36,6 +36,48 @@ import { useAppSelector, useAppDispatch } from '../../store'
 import { toggleSidebar, toggleTheme } from '../../store/slices/uiSlice'
 import { selectIsConnected } from '../../store/slices/websocketSlice'
 
+// Utility component for consistent metric value display
+export const MetricValue: React.FC<{
+  value: number | null | undefined
+  formatter?: (value: number) => string
+  nullText?: string
+  className?: string
+}> = ({ 
+  value, 
+  formatter = (val) => val.toString(), 
+  nullText = 'nil',
+  className 
+}) => {
+  if (value === null || value === undefined) {
+    return (
+      <span 
+        className={className}
+        style={{ 
+          fontStyle: 'italic', 
+          color: 'rgba(0, 0, 0, 0.6)',
+          opacity: 0.7
+        }}
+      >
+        {nullText}
+      </span>
+    )
+  }
+  
+  return <span className={className}>{formatter(value)}</span>
+}
+
+// Utility formatters for common metric types
+export const formatters = {
+  percentage: (value: number) => `${value.toFixed(1)}%`,
+  currency: (value: number) => `$${value.toLocaleString()}`,
+  decimal: (decimals: number = 1) => (value: number) => value.toFixed(decimals),
+  integer: (value: number) => Math.round(value).toString(),
+  duration: (value: number) => `${value.toFixed(1)}s`,
+  count: (value: number) => value.toLocaleString(),
+}
+
+const DRAWER_WIDTH = 280
+
 interface LayoutProps {
   children: ReactNode
 }
@@ -91,7 +133,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         '& .MuiDrawer-paper': {
           width: sidebarWidth,
           boxSizing: 'border-box',
-          borderRight: `1px solid ${theme.palette.divider}`,
+          borderRight: '1px solid ' + theme.palette.divider,
         },
       }}
     >
@@ -236,7 +278,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           flexGrow: 1,
           p: 3,
           mt: 8, // Account for AppBar height
-          ml: sidebarOpen ? 0 : `-${sidebarWidth}px`,
+          ml: sidebarOpen ? 0 : '-' + sidebarWidth + 'px',
           transition: theme.transitions.create(['margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,

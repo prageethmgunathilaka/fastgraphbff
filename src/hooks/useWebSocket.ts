@@ -28,7 +28,7 @@ import {
 } from '../types/websocket'
 import { WorkflowStatus, AgentStatus } from '../types/core'
 
-const WS_URL = process.env.REACT_APP_WS_URL || 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws'
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://jux81vgip4.execute-api.us-east-1.amazonaws.com/ws'
 
 // Event processing configuration
 const EVENT_PROCESSING_CONFIG = {
@@ -252,7 +252,7 @@ export const useWebSocket = () => {
           break
 
         default:
-          console.warn('Unknown WebSocket event type:', event.type)
+          console.warn('Unknown WebSocket event type:', (event as any).type)
           return false
       }
 

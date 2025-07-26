@@ -43,7 +43,7 @@ export interface Agent {
   logs: LogEntry[]
   results: AgentResult[]
   // Additional properties used in the application
-  statusHistory?: { status: AgentStatus; timestamp: string; reason?: string; previousStatus?: string }[]
+  statusHistory?: { status: AgentStatus; timestamp: string; reason?: string; previousStatus?: string; metadata?: Record<string, any> }[]
   statusChangeReason?: string
   metadata?: Record<string, any>
   currentPhase?: string

@@ -22,7 +22,7 @@ export const store = configureStore({
         ignoredPaths: ['websocket.eventBuffer'],
       },
     }),
-  devTools: process.env.NODE_ENV !== 'production',
+  devTools: !import.meta.env.PROD,
 })
 
 export type RootState = ReturnType<typeof store.getState>

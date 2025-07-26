@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { mockWorkflows, mockAgents, mockAnalyticsData } from './data'
+import { Agent } from '../../types/core'
 
 const API_BASE_URL = 'https://jux81vgip4.execute-api.us-east-1.amazonaws.com'
 
@@ -10,9 +11,18 @@ export const handlers = [
     const page = Number(url.searchParams.get('page')) || 1
     const pageSize = Number(url.searchParams.get('pageSize')) || 20
     
+    // Enhance workflows with agent data
+    const enhancedWorkflows = mockWorkflows.map(workflow => {
+      const workflowAgents = mockAgents.filter(agent => agent.workflowId === workflow.id)
+      return {
+        ...workflow,
+        agents: workflowAgents
+      }
+    })
+    
     return HttpResponse.json({
-      workflows: mockWorkflows,
-      total: mockWorkflows.length,
+      workflows: enhancedWorkflows,
+      total: enhancedWorkflows.length,
       page,
       pageSize
     })
@@ -23,7 +33,15 @@ export const handlers = [
     if (!workflow) {
       return new HttpResponse(null, { status: 404 })
     }
-    return HttpResponse.json(workflow)
+    
+    // Enhance workflow with agent data
+    const workflowAgents = mockAgents.filter(agent => agent.workflowId === workflow.id)
+    const enhancedWorkflow = {
+      ...workflow,
+      agents: workflowAgents
+    }
+    
+    return HttpResponse.json(enhancedWorkflow)
   }),
 
   http.post(`${API_BASE_URL}/workflows`, async ({ request }) => {
@@ -50,6 +68,12 @@ export const handlers = [
         }
       }
     }
+    
+    // Add the new workflow to mockWorkflows so it's available for future requests
+    mockWorkflows.push(workflow)
+    console.log('🔧 Workflow created and added to mockWorkflows:', workflow.id)
+    console.log('🔧 Total workflows now:', mockWorkflows.length)
+    
     return HttpResponse.json(workflow, { status: 201 })
   }),
 
@@ -63,29 +87,41 @@ export const handlers = [
     return HttpResponse.json(updatedWorkflow)
   }),
 
+
+
+  // Workflow control endpoints
+
   http.delete(`${API_BASE_URL}/workflows/:id`, ({ params }) => {
-    const workflowExists = mockWorkflows.some(w => w.id === params.id)
-    if (!workflowExists) {
+    const workflowId = params.id as string
+    const workflowIndex = mockWorkflows.findIndex(w => w.id === workflowId)
+    
+    if (workflowIndex === -1) {
       return new HttpResponse(null, { status: 404 })
     }
+    
+    // Remove the workflow (cancel it)
+    mockWorkflows.splice(workflowIndex, 1)
+    
     return new HttpResponse(null, { status: 204 })
   }),
 
-  // Workflow control endpoints
-  http.post(`${API_BASE_URL}/workflows/:id/start`, ({ params }) => {
-    const workflow = mockWorkflows.find(w => w.id === params.id)
-    if (!workflow) {
+  http.post(`${API_BASE_URL}/workflows/:id/execute`, ({ params }) => {
+    const workflowId = params.id as string
+    const workflowIndex = mockWorkflows.findIndex(w => w.id === workflowId)
+    
+    if (workflowIndex === -1) {
       return new HttpResponse(null, { status: 404 })
     }
-    return HttpResponse.json({ ...workflow, status: 'running' })
-  }),
-
-  http.post(`${API_BASE_URL}/workflows/:id/pause`, ({ params }) => {
-    const workflow = mockWorkflows.find(w => w.id === params.id)
-    if (!workflow) {
-      return new HttpResponse(null, { status: 404 })
+    
+    // Update the workflow status to running
+    mockWorkflows[workflowIndex] = {
+      ...mockWorkflows[workflowIndex],
+      status: 'running',
+      updatedAt: new Date().toISOString()
     }
-    return HttpResponse.json({ ...workflow, status: 'paused' })
+    
+    // Return simple string response as per real API spec
+    return HttpResponse.json(`Workflow ${workflowId} execution started`)
   }),
 
   // Agent endpoints
@@ -107,6 +143,85 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 })
     }
     return HttpResponse.json(agent)
+  }),
+
+  http.post(`${API_BASE_URL}/workflows/:workflowId/agents`, async ({ request, params }) => {
+    const newAgentData = await request.json() as any
+    const workflowId = params.workflowId as string
+    
+    // Create agent response following real API spec exactly
+    const agent = {
+      id: `agent-${Date.now()}`,
+      workflow_id: workflowId,
+      name: newAgentData.name,
+      description: newAgentData.description || "",
+      agent_type: newAgentData.agent_type || "main",
+      llm_config: newAgentData.llm_config || {
+        provider: "openai",
+        model: "gpt-4",
+        api_key: "sk-mock-key",
+        temperature: 0.7,
+        max_tokens: 1000,
+        additional_config: {}
+      },
+      mcp_connections: newAgentData.mcp_connections || [],
+      max_child_agents: newAgentData.max_child_agents || 5,
+      parent_agent_id: null,
+      status: "idle",
+      status_description: "Agent is idle",
+      status_updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      last_activity: new Date().toISOString(),
+      connected_agents: [],
+      child_agents: [],
+      tasks: [],
+      capabilities: newAgentData.capabilities || [],
+      config: newAgentData.config || {}
+    }
+    
+    // Add the new agent to the mock data (convert to old format for compatibility)
+    const legacyAgent = {
+      id: agent.id,
+      workflowId: agent.workflow_id,
+      name: agent.name,
+      description: agent.description,
+      type: agent.agent_type,
+      status: agent.status,
+      createdAt: agent.created_at,
+      updatedAt: agent.status_updated_at,
+      progress: 0,
+      capabilities: agent.capabilities,
+      tools: [], // Will be mapped from capabilities
+      executionContext: {
+        environment: 'production',
+        version: '1.0.0',
+        configuration: agent.config,
+        dependencies: []
+      },
+      performance: {
+        executionTime: 0,
+        responseTime: 0,
+        successRate: 0,
+        errorCount: 0,
+        resourceUsage: {
+          cpu: 0,
+          memory: 0,
+          apiCalls: 0,
+          tokens: 0
+        },
+        qualityScore: 0
+      },
+      logs: [],
+      results: []
+    }
+    
+    mockAgents.push(legacyAgent)
+    
+    console.log('🔧 Agent created and added to mockAgents:', legacyAgent.id)
+    console.log('🔧 Total agents now:', mockAgents.length)
+    console.log('🔧 Agents for workflow', workflowId, ':', mockAgents.filter(a => a.workflowId === workflowId).length)
+    
+    return HttpResponse.json(agent, { status: 201 })
   }),
 
   http.get(`${API_BASE_URL}/agents/:id/logs`, ({ params, request }) => {

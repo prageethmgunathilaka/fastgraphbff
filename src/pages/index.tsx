@@ -1,5 +1,6 @@
 ﻿import React from 'react'
 import { Box, Typography, Card, CardContent, Grid } from '@mui/material'
+import Workflows from './WorkflowMonitoring/Workflows'
 
 const Analytics: React.FC = () => (
   <Box>
@@ -49,29 +50,7 @@ const Reports: React.FC = () => (
   </Box>
 )
 
-const WorkflowMonitoring: React.FC = () => (
-  <Box>
-    <Typography variant="h4" gutterBottom>Workflow Monitoring</Typography>
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
-        <Card><CardContent>
-          <Typography variant="h6">Active Workflows</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Real-time monitoring of running workflows and their progress
-          </Typography>
-        </CardContent></Card>
-      </Grid>
-      <Grid item xs={12} md={6}>
-        <Card><CardContent>
-          <Typography variant="h6">Workflow History</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Historical data and performance metrics for completed workflows
-          </Typography>
-        </CardContent></Card>
-      </Grid>
-    </Grid>
-  </Box>
-)
+const WorkflowMonitoring: React.FC = () => <Workflows />
 
 const Settings: React.FC = () => (
   <Box>

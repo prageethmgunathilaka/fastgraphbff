@@ -310,9 +310,30 @@ const workflowSlice = createSlice({
         state.loading = false
         
         // Convert array to record and enhance with real-time tracking
-        const workflowsRecord = action.payload.workflows.reduce((acc, workflow) => {
-          acc[workflow.id] = {
+        const workflowsRecord = action.payload.workflows.reduce((acc, workflow: any) => {
+          // Transform backend data format to frontend format
+          const transformedWorkflow: Workflow = {
             ...workflow,
+            // Map backend status to frontend status
+            status: (workflow.status === 'active' ? WorkflowStatus.RUNNING : workflow.status) as WorkflowStatus,
+            // Map snake_case to camelCase
+            createdAt: workflow.created_at || workflow.createdAt || new Date().toISOString(),
+            updatedAt: workflow.last_modified || workflow.updatedAt || new Date().toISOString(),
+            // Ensure required fields exist with defaults
+            progress: workflow.progress || 0,
+            priority: workflow.priority || Priority.MEDIUM,
+            tags: workflow.tags || [],
+            agents: workflow.agents || [],
+            metrics: workflow.metrics || {
+              executionTime: 0,
+              successRate: 0,
+              errorRate: 0,
+              throughput: 0,
+              costMetrics: { totalCost: 0, costPerExecution: 0 },
+              resourceUsage: { cpuUsage: 0, memoryUsage: 0, storageUsage: 0 }
+            },
+            creator: workflow.creator || 'system',
+            configuration: workflow.configuration || {},
             // Initialize real-time fields if not present
             statusHistory: workflow.statusHistory || [],
             estimatedTimeRemaining: workflow.estimatedTimeRemaining,
@@ -320,6 +341,8 @@ const workflowSlice = createSlice({
             totalTasks: workflow.totalTasks || 1,
             currentPhase: workflow.currentPhase || 'initialization',
           }
+          
+          acc[workflow.id] = transformedWorkflow
           return acc
         }, {} as Record<string, Workflow>)
         
@@ -487,6 +510,174 @@ export const selectFilteredWorkflows = (state: { workflows: WorkflowState }) => 
   }
   
   return filtered
+}
+
+// Agent-related selectors
+export const selectActiveAgentsCount = (state: { workflows: WorkflowState }) => {
+  const workflows = Object.values(state.workflows.workflows)
+  let activeAgentsCount = 0
+  
+  workflows.forEach(workflow => {
+    if (workflow.agents && Array.isArray(workflow.agents)) {
+      // Count agents that are actively working (not completed, failed, or timeout)
+      const activeAgents = workflow.agents.filter(agent => 
+        agent.status === 'running' || 
+        agent.status === 'waiting' || 
+        agent.status === 'idle'
+      )
+      activeAgentsCount += activeAgents.length
+    }
+  })
+  
+  return activeAgentsCount
+}
+
+// Get total agents count for reference
+export const selectTotalAgentsCount = (state: { workflows: WorkflowState }) => {
+  const workflows = Object.values(state.workflows.workflows)
+  let totalAgentsCount = 0
+  
+  workflows.forEach(workflow => {
+    if (workflow.agents && Array.isArray(workflow.agents)) {
+      totalAgentsCount += workflow.agents.length
+    }
+  })
+  
+  return totalAgentsCount
+}
+
+// Get agents by status for detailed breakdown
+export const selectAgentsByStatus = (state: { workflows: WorkflowState }) => {
+  const workflows = Object.values(state.workflows.workflows)
+  const agentsByStatus = {
+    idle: 0,
+    running: 0,
+    waiting: 0,
+    completed: 0,
+    failed: 0,
+    timeout: 0
+  }
+  
+  workflows.forEach(workflow => {
+    if (workflow.agents && Array.isArray(workflow.agents)) {
+      workflow.agents.forEach(agent => {
+        if (agentsByStatus.hasOwnProperty(agent.status)) {
+          agentsByStatus[agent.status as keyof typeof agentsByStatus] += 1
+        }
+      })
+    }
+  })
+  
+  return agentsByStatus
+}
+
+// Calculate system health based on workflow and agent performance
+export const selectSystemHealth = (state: { workflows: WorkflowState }) => {
+  const workflows = Object.values(state.workflows.workflows)
+  
+  if (workflows.length === 0) {
+    return {
+      score: null,
+      status: 'No data available',
+      factors: {
+        workflowSuccess: null,
+        agentPerformance: null,
+        errorRate: null,
+        activeWorkflows: null
+      }
+    }
+  }
+
+  let healthScore = 100
+  const factors = {
+    workflowSuccess: 0,
+    agentPerformance: 0, 
+    errorRate: 0,
+    activeWorkflows: 0
+  }
+
+  // 1. Workflow Success Rate (40% weight)
+  const completedWorkflows = workflows.filter(w => 
+    w.status === WorkflowStatus.COMPLETED || w.status === ('completed' as any)
+  ).length
+  const failedWorkflows = workflows.filter(w => 
+    w.status === WorkflowStatus.FAILED || w.status === ('failed' as any)
+  ).length
+  const totalTerminalWorkflows = completedWorkflows + failedWorkflows
+  
+  if (totalTerminalWorkflows > 0) {
+    factors.workflowSuccess = (completedWorkflows / totalTerminalWorkflows) * 100
+    // Deduct up to 40 points for poor workflow success rate
+    healthScore -= (100 - factors.workflowSuccess) * 0.4
+  }
+
+  // 2. Agent Performance (30% weight)
+  let totalAgents = 0
+  let successfulAgents = 0
+  let failedAgents = 0
+
+  workflows.forEach(workflow => {
+    if (workflow.agents && Array.isArray(workflow.agents)) {
+      totalAgents += workflow.agents.length
+      successfulAgents += workflow.agents.filter(a => a.status === 'completed').length
+      failedAgents += workflow.agents.filter(a => a.status === 'failed' || a.status === 'timeout').length
+    }
+  })
+
+  if (totalAgents > 0) {
+    factors.agentPerformance = (successfulAgents / totalAgents) * 100
+    // Deduct up to 30 points for poor agent performance
+    healthScore -= (100 - factors.agentPerformance) * 0.3
+  }
+
+  // 3. Error Rate (20% weight)
+  const totalWorkflows = workflows.length
+  const errorRate = (failedWorkflows / totalWorkflows) * 100
+  factors.errorRate = errorRate
+  // Deduct up to 20 points for high error rates
+  healthScore -= errorRate * 0.2
+
+  // 4. Active Workflows Health (10% weight)
+  const runningWorkflows = workflows.filter(w => 
+    w.status === WorkflowStatus.RUNNING || w.status === ('running' as any)
+  ).length
+  const pausedWorkflows = workflows.filter(w => 
+    w.status === WorkflowStatus.PAUSED || w.status === ('paused' as any)
+  ).length
+  const pendingWorkflows = workflows.filter(w => 
+    w.status === WorkflowStatus.PENDING || w.status === ('pending' as any)
+  ).length
+  const activeWorkflows = runningWorkflows + pausedWorkflows + pendingWorkflows
+
+  if (activeWorkflows > 0) {
+    // Healthy if most active workflows are running (not paused/pending)
+    factors.activeWorkflows = (runningWorkflows / activeWorkflows) * 100
+    healthScore -= (100 - factors.activeWorkflows) * 0.1
+  }
+
+  // Ensure score stays within bounds
+  const finalScore = Math.max(0, Math.min(100, Math.round(healthScore)))
+  
+  // Determine status message
+  let status = 'System operational'
+  if (finalScore < 50) {
+    status = 'System degraded - multiple issues detected'
+  } else if (finalScore < 70) {
+    status = 'System experiencing some issues'
+  } else if (finalScore < 90) {
+    status = 'System mostly operational'
+  }
+
+  return {
+    score: finalScore,
+    status,
+    factors: {
+      workflowSuccess: Math.round(factors.workflowSuccess * 100) / 100,
+      agentPerformance: Math.round(factors.agentPerformance * 100) / 100,
+      errorRate: Math.round(factors.errorRate * 100) / 100,
+      activeWorkflows: Math.round(factors.activeWorkflows * 100) / 100
+    }
+  }
 }
 
 export default workflowSlice.reducer

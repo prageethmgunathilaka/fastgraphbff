@@ -12,7 +12,7 @@ export const mockWorkflows: Workflow[] = [
     estimatedTimeRemaining: 1800,
     priority: Priority.HIGH,
     tags: ['ecommerce', 'optimization', 'sales'],
-    agents: [],
+    agents: [], // Will be populated dynamically by mock handlers with agents from mockAgents
     metrics: {
       totalExecutionTime: 1800,
       averageAgentResponseTime: 250,
@@ -54,7 +54,7 @@ export const mockWorkflows: Workflow[] = [
     progress: 100,
     priority: Priority.CRITICAL,
     tags: ['healthcare', 'medical', 'compliance'],
-    agents: [],
+    agents: [], // Will be populated dynamically by mock handlers
     metrics: {
       totalExecutionTime: 6300,
       averageAgentResponseTime: 180,
@@ -96,7 +96,7 @@ export const mockWorkflows: Workflow[] = [
     progress: 25,
     priority: Priority.HIGH,
     tags: ['finance', 'trading', 'algorithms'],
-    agents: [],
+    agents: [], // Will be populated dynamically by mock handlers
     metrics: {
       totalExecutionTime: 900,
       averageAgentResponseTime: 450,
@@ -234,6 +234,117 @@ export const mockAgents: Agent[] = [
         tokens: 8000
       },
       qualityScore: 9.8
+    },
+    logs: [],
+    results: []
+  },
+  {
+    id: 'agent-3',
+    workflowId: '', // Not assigned to any workflow
+    name: 'Data Processing Agent',
+    description: 'Specialized in processing large datasets and extracting insights',
+    type: AgentType.PROCESSING,
+    status: AgentStatus.IDLE,
+    createdAt: '2024-01-16T09:00:00Z',
+    updatedAt: '2024-01-16T09:00:00Z',
+    progress: 0,
+    capabilities: ['data-transformation', 'etl-processing', 'data-validation'],
+    tools: ['apache-spark', 'pandas', 'dask'],
+    executionContext: {
+      environment: 'production',
+      version: '1.0.0',
+      configuration: {
+        batchSize: 10000,
+        parallelWorkers: 4
+      },
+      dependencies: ['pyspark==3.2.0', 'pandas==1.3.0']
+    },
+    performance: {
+      executionTime: 0,
+      responseTime: 0,
+      successRate: 0,
+      errorCount: 0,
+      resourceUsage: {
+        cpu: 0,
+        memory: 0,
+        apiCalls: 0,
+        tokens: 0
+      },
+      qualityScore: 0
+    },
+    logs: [],
+    results: []
+  },
+  {
+    id: 'agent-4',
+    workflowId: '', // Not assigned to any workflow
+    name: 'Security Monitoring Agent',
+    description: 'Monitors system security and detects anomalies',
+    type: AgentType.MONITORING,
+    status: AgentStatus.IDLE,
+    createdAt: '2024-01-16T10:00:00Z',
+    updatedAt: '2024-01-16T10:00:00Z',
+    progress: 0,
+    capabilities: ['threat-detection', 'log-analysis', 'security-scanning'],
+    tools: ['elk-stack', 'splunk', 'nmap'],
+    executionContext: {
+      environment: 'production',
+      version: '2.0.1',
+      configuration: {
+        scanInterval: '5m',
+        alertThreshold: 'medium'
+      },
+      dependencies: ['elasticsearch==7.15.0', 'kibana==7.15.0']
+    },
+    performance: {
+      executionTime: 0,
+      responseTime: 0,
+      successRate: 0,
+      errorCount: 0,
+      resourceUsage: {
+        cpu: 0,
+        memory: 0,
+        apiCalls: 0,
+        tokens: 0
+      },
+      qualityScore: 0
+    },
+    logs: [],
+    results: []
+  },
+  {
+    id: 'agent-5',
+    workflowId: '', // Not assigned to any workflow
+    name: 'Report Generation Agent',
+    description: 'Generates automated reports and visualizations',
+    type: AgentType.AUTOMATION,
+    status: AgentStatus.IDLE,
+    createdAt: '2024-01-16T11:00:00Z',
+    updatedAt: '2024-01-16T11:00:00Z',
+    progress: 0,
+    capabilities: ['report-generation', 'data-visualization', 'email-automation'],
+    tools: ['matplotlib', 'plotly', 'jinja2'],
+    executionContext: {
+      environment: 'production',
+      version: '1.1.0',
+      configuration: {
+        reportFormat: 'pdf',
+        emailSchedule: 'daily'
+      },  
+      dependencies: ['matplotlib==3.5.0', 'plotly==5.3.0']
+    },
+    performance: {
+      executionTime: 0,
+      responseTime: 0,
+      successRate: 0,
+      errorCount: 0,
+      resourceUsage: {
+        cpu: 0,
+        memory: 0,
+        apiCalls: 0,
+        tokens: 0
+      },
+      qualityScore: 0
     },
     logs: [],
     results: []
