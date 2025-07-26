@@ -92,10 +92,12 @@ describe('Dashboard Full Integration (Simplified)', () => {
       mockWebSocket = mockWebSocketInstances[0]
       
       // Simulate connection open
-      mockWebSocket.readyState = MockWebSocket.OPEN
-      if (mockWebSocket.onopen) {
-        mockWebSocket.onopen(new Event('open'))
-      }
+      await act(async () => {
+        mockWebSocket.readyState = MockWebSocket.OPEN
+        if (mockWebSocket.onopen) {
+          mockWebSocket.onopen(new Event('open'))
+        }
+      })
 
       // Verify connection is established
       expect(mockWebSocket.readyState).toBe(MockWebSocket.OPEN)
@@ -121,7 +123,9 @@ describe('Dashboard Full Integration (Simplified)', () => {
       }
 
       // This should not crash the component
-      mockWebSocket.simulateMessage(testMessage)
+      await act(async () => {
+        mockWebSocket.simulateMessage(testMessage)
+      })
       
       expect(document.body).toBeInTheDocument()
     })
@@ -152,7 +156,9 @@ describe('Dashboard Full Integration (Simplified)', () => {
       mockWebSocket = mockWebSocketInstances[0]
       
       // Simulate connection error
-      mockWebSocket.simulateError()
+      await act(async () => {
+        mockWebSocket.simulateError()
+      })
       
       // Component should not crash
       expect(document.body).toBeInTheDocument()
@@ -168,7 +174,9 @@ describe('Dashboard Full Integration (Simplified)', () => {
       mockWebSocket = mockWebSocketInstances[0]
       
       // Simulate connection close
-      mockWebSocket.simulateClose(1006, 'Connection lost')
+      await act(async () => {
+        mockWebSocket.simulateClose(1006, 'Connection lost')
+      })
       
       // Component should not crash
       expect(document.body).toBeInTheDocument()
