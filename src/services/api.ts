@@ -39,7 +39,7 @@ interface HealthResponse {
 }
 
 // Base API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://api.fastgraph.example.com/v1'
 
 class ApiClient {
   protected client: AxiosInstance
@@ -102,40 +102,33 @@ class ApiClient {
 // Workflow API
 class WorkflowApi extends ApiClient {
   async getWorkflows(params?: { page?: number; pageSize?: number; filters?: any }) {
-    const response = await this.get<{ success: boolean; data: { workflows: Workflow[]; pagination: any } }>('/workflows', params);
-    return {
-      workflows: response.data.workflows,
-      total: response.data.pagination.total
-    };
+    return this.get<{ workflows: Workflow[]; total: number }>('/workflows', params);
   }
 
   async getWorkflowById(id: string): Promise<Workflow> {
-    const response = await this.get<{ success: boolean; data: Workflow }>(`/workflows/${id}?includeAgents=true`);
-    return response.data;
+    return this.get<Workflow>(`/workflows/${id}`);
   }
 
   async createWorkflow(workflow: Partial<Workflow>): Promise<Workflow> {
-    const response = await this.post<{ success: boolean; data: Workflow }>('/workflows', workflow);
-    return response.data;
+    return this.post<Workflow>('/workflows', workflow);
   }
 
   async updateWorkflow(id: string, updates: Partial<Workflow>): Promise<Workflow> {
-    const response = await this.put<{ success: boolean; data: Workflow }>(`/workflows/${id}`, updates);
-    return response.data;
+    return this.put<Workflow>(`/workflows/${id}`, updates);
   }
 
   async deleteWorkflow(id: string): Promise<void> {
-    await this.delete<{ success: boolean; message: string }>(`/workflows/${id}`);
+    return this.delete<void>(`/workflows/${id}`);
   }
 
   async executeWorkflow(id: string): Promise<string> {
-    const response = await this.put<{ success: boolean; data: Workflow }>(`/workflows/${id}`, { status: 'running' });
-    return response.data.id;
+    const workflow = await this.post<Workflow>(`/workflows/${id}/execute`, {});
+    return workflow.id;
   }
 
   async getWorkflowStatus(id: string): Promise<any> {
-    const response = await this.get<{ success: boolean; data: Workflow }>(`/workflows/${id}`);
-    return { status: response.data.status, progress: response.data.progress };
+    const workflow = await this.get<Workflow>(`/workflows/${id}`);
+    return { status: workflow.status, progress: workflow.progress };
   }
 
   // Legacy method names for backwards compatibility
@@ -152,35 +145,31 @@ class WorkflowApi extends ApiClient {
 class AgentApi extends ApiClient {
   async getAgents(workflowId?: string): Promise<Agent[]> {
     const params = workflowId ? { workflowId } : {};
-    const response = await this.get<{ success: boolean; data: { agents: Agent[] } }>('/agents', params);
-    return response.data.agents;
+    return this.get<Agent[]>('/agents', params);
   }
 
   async getAgentById(id: string): Promise<Agent> {
-    const response = await this.get<{ success: boolean; data: Agent }>(`/agents/${id}?includeLogs=true&includeResults=true`);
-    return response.data;
+    return this.get<Agent>(`/agents/${id}`);
   }
 
   async createAgent(workflowId: string, agentData: any): Promise<Agent> {
-    const response = await this.post<{ success: boolean; data: Agent }>('/agents', { 
+    return this.post<Agent>('/agents', { 
       workflowId, 
       ...agentData 
     });
-    return response.data;
   }
 
   async deleteAgent(id: string): Promise<void> {
-    await this.delete<{ success: boolean; message: string }>(`/agents/${id}`);
+    return this.delete<void>(`/agents/${id}`);
   }
 
   async getAgentStatus(id: string): Promise<any> {
-    const response = await this.get<{ success: boolean; data: Agent }>(`/agents/${id}`);
-    return { status: response.data.status, progress: response.data.progress };
+    const agent = await this.get<Agent>(`/agents/${id}`);
+    return { status: agent.status, progress: agent.progress };
   }
 
   async updateAgentStatus(id: string, status: any): Promise<any> {
-    const response = await this.put<{ success: boolean; data: Agent }>(`/agents/${id}`, { status });
-    return response.data;
+    return this.put<Agent>(`/agents/${id}`, { status });
   }
 
   async connectAgents(agentId: string, connectionData: any): Promise<any> {
@@ -200,20 +189,19 @@ class AgentApi extends ApiClient {
 
   // Legacy methods for backwards compatibility
   async getAgentLogs(id: string, params?: { limit?: number; offset?: number }): Promise<any[]> {
-    const response = await this.get<{ success: boolean; data: Agent }>(`/agents/${id}?includeLogs=true`);
-    return response.data.logs || [];
+    const agent = await this.get<Agent>(`/agents/${id}`);
+    return agent.logs || [];
   }
 
   async getAgentResults(id: string, params?: { limit?: number; offset?: number }): Promise<any[]> {
-    const response = await this.get<{ success: boolean; data: Agent }>(`/agents/${id}?includeResults=true`);
-    return response.data.results || [];
+    const agent = await this.get<Agent>(`/agents/${id}`);
+    return agent.results || [];
   }
 
   async updateAgentConfiguration(id: string, config: any): Promise<Agent> {
-    const response = await this.put<{ success: boolean; data: Agent }>(`/agents/${id}`, { 
+    return this.put<Agent>(`/agents/${id}`, { 
       executionContext: config 
     });
-    return response.data;
   }
 }
 
