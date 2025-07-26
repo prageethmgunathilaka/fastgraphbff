@@ -630,7 +630,6 @@ export const selectSystemHealth = createSelector(
       if (workflow.agents && Array.isArray(workflow.agents)) {
         totalAgents += workflow.agents.length
         successfulAgents += workflow.agents.filter(a => a.status === 'completed').length
-        failedAgents += workflow.agents.filter(a => a.status === 'failed' || a.status === 'timeout').length
       }
     })
 
