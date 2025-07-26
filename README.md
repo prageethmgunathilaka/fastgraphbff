@@ -1,5 +1,13 @@
 ﻿# Advanced Analytics Dashboard
 
+[![CI/CD Pipeline](https://github.com/YourUsername/FastGraphBff/actions/workflows/ci.yml/badge.svg)](https://github.com/YourUsername/FastGraphBff/actions/workflows/ci.yml)
+[![PR Quality Check](https://github.com/YourUsername/FastGraphBff/actions/workflows/pr-check.yml/badge.svg)](https://github.com/YourUsername/FastGraphBff/actions/workflows/pr-check.yml)
+[![codecov](https://codecov.io/gh/YourUsername/FastGraphBff/branch/master/graph/badge.svg)](https://codecov.io/gh/YourUsername/FastGraphBff)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-blue?logo=react)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Real-Time Agent Management Client for LangGraph Agent Spawning System
 
 ##  Features
@@ -104,6 +112,32 @@ Each scenario demonstrates different aspects of the real-time monitoring and ana
 - Support for 50+ concurrent users
 - Efficient handling of 100+ WebSocket events per second
 - Optimized rendering with React.memo and virtualization
+
+##  Quality Assurance
+
+This repository maintains high code quality through automated CI/CD pipelines:
+
+### 🔄 Automated Workflows
+- **CI/CD Pipeline**: Comprehensive testing, building, and deployment on every push
+- **PR Quality Check**: Fast feedback for pull requests with essential quality gates
+- **Dependabot**: Automated dependency updates with security vulnerability scanning
+
+### 🧪 Quality Gates
+- **Type Safety**: Full TypeScript coverage with strict compiler settings
+- **Code Linting**: ESLint with strict rules for code consistency
+- **Testing**: Jest unit tests with coverage reporting
+- **Build Verification**: Ensures production builds work correctly
+- **Security Auditing**: Automated vulnerability scanning
+
+### 📊 Code Coverage
+- Minimum 80% test coverage required
+- Coverage reports available via Codecov
+- Branch protection rules enforce quality standards
+
+### 🚀 Deployment
+- Automated preview deployments for main branch
+- GitHub Pages integration for live demos
+- Bundle size analysis and performance monitoring
 
 ##  Contributing
 

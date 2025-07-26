@@ -1,0 +1,240 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Quality checks job
+  quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run ESLint
+      run: npm run lint
+      continue-on-error: false
+      
+    - name: Run TypeScript type checking
+      run: npm run type-check
+      continue-on-error: false
+
+  # Test job
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests
+      run: npm run test:coverage
+      env:
+        CI: true
+        
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == 18
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  # Build job
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-files
+        path: dist/
+        retention-days: 7
+
+  # Security audit job
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run security audit
+      run: npm audit --audit-level high
+      continue-on-error: true
+      
+    - name: Run dependency vulnerability check
+      uses: actions/dependency-review-action@v3
+      if: github.event_name == 'pull_request'
+
+  # Bundle analysis job (optional, runs on main branch)
+  bundle-analysis:
+    name: Bundle Size Analysis
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    needs: [build]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build with bundle analysis
+      run: npm run build
+      
+    - name: Analyze bundle size
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          if (fs.existsSync('dist')) {
+            const files = fs.readdirSync('dist', { recursive: true });
+            const jsFiles = files.filter(f => f.endsWith('.js'));
+            
+            console.log('📦 Bundle Analysis:');
+            jsFiles.forEach(file => {
+              const filePath = path.join('dist', file);
+              const stats = fs.statSync(filePath);
+              const sizeKB = (stats.size / 1024).toFixed(2);
+              console.log(`  ${file}: ${sizeKB} KB`);
+            });
+          }
+
+  # Deploy job (only runs on main/master branch)
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    needs: [quality, test, build, security]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-files
+        path: dist/
+        
+    - name: Deploy to GitHub Pages (Preview)
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.repository_owner == github.actor
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./dist
+        publish_branch: gh-pages
+        
+    - name: Comment deployment URL
+      uses: actions/github-script@v7
+      if: github.event_name == 'push'
+      with:
+        script: |
+          const deployUrl = `https://${context.repo.owner}.github.io/${context.repo.repo}`;
+          console.log(`🚀 Deployment available at: ${deployUrl}`);
+
+  # Notification job
+  notify:
+    name: Notify Results
+    runs-on: ubuntu-latest
+    needs: [quality, test, build, security]
+    if: always()
+    
+    steps:
+    - name: Check job results
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const jobs = [
+            { name: 'Quality Checks', result: '${{ needs.quality.result }}' },
+            { name: 'Tests', result: '${{ needs.test.result }}' },
+            { name: 'Build', result: '${{ needs.build.result }}' },
+            { name: 'Security', result: '${{ needs.security.result }}' }
+          ];
+          
+          const failed = jobs.filter(job => job.result === 'failure');
+          const success = jobs.filter(job => job.result === 'success');
+          
+          console.log('📊 Pipeline Results:');
+          console.log(`✅ Successful: ${success.length}`);
+          console.log(`❌ Failed: ${failed.length}`);
+          
+          if (failed.length > 0) {
+            console.log('\n❌ Failed Jobs:');
+            failed.forEach(job => console.log(`  - ${job.name}`));
+          }
+          
+          if (success.length === jobs.length) {
+            console.log('\n🎉 All quality checks passed!');
+          } 

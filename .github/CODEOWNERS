@@ -1,0 +1,33 @@
+# Global code ownership
+* @YourUsername
+
+# Frontend components
+/src/components/ @YourUsername
+/src/pages/ @YourUsername
+
+# Services and API
+/src/services/ @YourUsername
+/src/hooks/ @YourUsername
+
+# Store and state management
+/src/store/ @YourUsername
+
+# Tests
+/src/test/ @YourUsername
+*.test.ts @YourUsername
+*.test.tsx @YourUsername
+*.spec.ts @YourUsername
+*.spec.tsx @YourUsername
+
+# Configuration files
+package.json @YourUsername
+package-lock.json @YourUsername
+tsconfig.json @YourUsername
+vite.config.ts @YourUsername
+jest.config.js @YourUsername
+
+# CI/CD and GitHub workflows
+/.github/ @YourUsername
+
+# Documentation
+*.md @YourUsername 
