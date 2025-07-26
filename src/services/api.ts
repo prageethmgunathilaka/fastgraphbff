@@ -189,12 +189,12 @@ class AgentApi extends ApiClient {
   }
 
   // Legacy methods for backwards compatibility
-  async getAgentLogs(id: string, params?: { limit?: number; offset?: number }): Promise<any[]> {
+  async getAgentLogs(id: string): Promise<any[]> {
     const agent = await this.get<Agent>(`/agents/${id}`);
     return agent.logs || [];
   }
 
-  async getAgentResults(id: string, params?: { limit?: number; offset?: number }): Promise<any[]> {
+  async getAgentResults(id: string): Promise<any[]> {
     const agent = await this.get<Agent>(`/agents/${id}`);
     return agent.results || [];
   }

@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardActions,
   Grid,
   Chip,
   LinearProgress,
@@ -20,7 +19,6 @@ import {
   Select,
   MenuItem,
   Alert,
-  Divider,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -107,7 +105,7 @@ const Workflows: React.FC = () => {
         throw new Error(`Failed to create workflow: ${response.statusText}`)
       }
 
-      const createdWorkflow = await response.json()
+      await response.json()
       
       // Close dialog and reset form
       setCreateDialogOpen(false)

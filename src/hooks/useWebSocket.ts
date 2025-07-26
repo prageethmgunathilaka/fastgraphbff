@@ -185,7 +185,7 @@ export const useWebSocket = () => {
           }
           break
 
-        case WebSocketEventType.ERROR_OCCURRED:
+        case WebSocketEventType.ERROR_OCCURRED: {
           if (!event.data.error || !event.data.error.message) {
             throw new Error('Invalid error event data')
           }
@@ -204,8 +204,9 @@ export const useWebSocket = () => {
             ] : undefined,
           }))
           break
+        }
 
-        case WebSocketEventType.METRIC_UPDATE:
+        case WebSocketEventType.METRIC_UPDATE: {
           if (!Array.isArray(event.data.metrics) || event.data.metrics.length === 0) {
             throw new Error('Invalid metrics data')
           }
@@ -236,6 +237,7 @@ export const useWebSocket = () => {
             }))
           }
           break
+        }
 
         case WebSocketEventType.LOG_ENTRY:
           if (!event.data.agentId || !event.data.logEntry) {

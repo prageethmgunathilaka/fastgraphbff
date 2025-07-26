@@ -47,7 +47,6 @@ const Dashboard: React.FC = () => {
   const { 
     dashboardData, 
     businessMetrics, 
-    performanceData,
     loading: analyticsLoading,
     error: analyticsError 
   } = useAppSelector((state) => state.analytics)
@@ -67,7 +66,7 @@ const Dashboard: React.FC = () => {
   // }, [workflows, activeAgentsCount, agentsByStatus, systemHealth])
 
   // Helper function for rendering metric values in cards
-  const renderMetricValue = (value: number | null, formatter?: (value: number) => string) => (
+  const renderMetricValue = (value: number | null, formatter?: (_: number) => string) => (
     <MetricValue value={value} formatter={formatter} />
   )
 
@@ -124,7 +123,6 @@ const Dashboard: React.FC = () => {
     
     // Simple calculation based on workflow success rate
     const total = workflowList.length
-    const completed = completedWorkflows.length
     const failed = failedWorkflows.length
     const running = runningWorkflows.length
     

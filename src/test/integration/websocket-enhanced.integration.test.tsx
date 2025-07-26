@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor, act } from '../utils-jest'
+import { render, screen, waitFor, act, MockWebSocket } from '../utils-jest'
 import { useWebSocket, useWorkflowEvents, useAgentEvents, useSystemEvents } from '../../hooks/useWebSocket'
 import { useAppSelector } from '../../store'
 import { 
@@ -17,7 +17,6 @@ import {
   ErrorSeverity 
 } from '../../types/websocket'
 import { WorkflowStatus, AgentStatus } from '../../types/core'
-import { MockWebSocket } from '../utils-jest'
 
 // Test component for WebSocket functionality
 const WebSocketTestComponent: React.FC<{ testId: string }> = ({ testId }) => {

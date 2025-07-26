@@ -68,6 +68,11 @@ export default [
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_' 
       }],
+      // Allow unused parameters in function signatures and type definitions
+      'no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_'
+      }],
       '@typescript-eslint/no-explicit-any': 'warn',
       
       // General code quality

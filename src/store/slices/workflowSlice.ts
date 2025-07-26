@@ -569,7 +569,7 @@ export const selectAgentsByStatus = createSelector(
     workflowsArray.forEach(workflow => {
       if (workflow.agents && Array.isArray(workflow.agents)) {
         workflow.agents.forEach(agent => {
-          if (agentsByStatus.hasOwnProperty(agent.status)) {
+          if (agent.status in agentsByStatus) {
             agentsByStatus[agent.status as keyof typeof agentsByStatus] += 1
           }
         })
@@ -625,7 +625,6 @@ export const selectSystemHealth = createSelector(
     // 2. Agent Performance (30% weight)
     let totalAgents = 0
     let successfulAgents = 0
-    let failedAgents = 0
 
     workflowsArray.forEach(workflow => {
       if (workflow.agents && Array.isArray(workflow.agents)) {

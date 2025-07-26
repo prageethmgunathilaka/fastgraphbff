@@ -39,7 +39,7 @@ import { selectIsConnected } from '../../store/slices/websocketSlice'
 // Utility component for consistent metric value display
 export const MetricValue: React.FC<{
   value: number | null | undefined
-  formatter?: (value: number) => string
+  formatter?: (_value: number) => string
   nullText?: string
   className?: string
 }> = ({ 
@@ -76,7 +76,7 @@ export const formatters = {
   count: (value: number) => value.toLocaleString(),
 }
 
-const DRAWER_WIDTH = 280
+
 
 interface LayoutProps {
   children: ReactNode
