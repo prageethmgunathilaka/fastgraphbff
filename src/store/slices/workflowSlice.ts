@@ -1,4 +1,4 @@
-﻿import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit'
+﻿import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit'
 import { Workflow, WorkflowStatus, Priority } from '../../types/core'
 import { workflowApi } from '../../services/api'
 
@@ -552,138 +552,144 @@ export const selectTotalAgentsCount = (state: { workflows: WorkflowState }) => {
   return totalAgentsCount
 }
 
-// Get agents by status for detailed breakdown
-export const selectAgentsByStatus = (state: { workflows: WorkflowState }) => {
-  const workflows = Object.values(state.workflows.workflows)
-  const agentsByStatus = {
-    idle: 0,
-    running: 0,
-    waiting: 0,
-    completed: 0,
-    failed: 0,
-    timeout: 0
-  }
-  
-  workflows.forEach(workflow => {
-    if (workflow.agents && Array.isArray(workflow.agents)) {
-      workflow.agents.forEach(agent => {
-        if (agentsByStatus.hasOwnProperty(agent.status)) {
-          agentsByStatus[agent.status as keyof typeof agentsByStatus] += 1
-        }
-      })
+// Get agents by status for detailed breakdown - MEMOIZED
+export const selectAgentsByStatus = createSelector(
+  [selectWorkflows],
+  (workflows) => {
+    const workflowsArray = Object.values(workflows)
+    const agentsByStatus = {
+      idle: 0,
+      running: 0,
+      waiting: 0,
+      completed: 0,
+      failed: 0,
+      timeout: 0
     }
-  })
-  
-  return agentsByStatus
-}
+    
+    workflowsArray.forEach(workflow => {
+      if (workflow.agents && Array.isArray(workflow.agents)) {
+        workflow.agents.forEach(agent => {
+          if (agentsByStatus.hasOwnProperty(agent.status)) {
+            agentsByStatus[agent.status as keyof typeof agentsByStatus] += 1
+          }
+        })
+      }
+    })
+    
+    return agentsByStatus
+  }
+)
 
-// Calculate system health based on workflow and agent performance
-export const selectSystemHealth = (state: { workflows: WorkflowState }) => {
-  const workflows = Object.values(state.workflows.workflows)
-  
-  if (workflows.length === 0) {
+// Calculate system health based on workflow and agent performance - MEMOIZED
+export const selectSystemHealth = createSelector(
+  [selectWorkflows],
+  (workflows) => {
+    const workflowsArray = Object.values(workflows)
+    
+    if (workflowsArray.length === 0) {
+      return {
+        score: null,
+        status: 'No data available',
+        factors: {
+          workflowSuccess: null,
+          agentPerformance: null,
+          errorRate: null,
+          activeWorkflows: null
+        }
+      }
+    }
+
+    let healthScore = 100
+    const factors = {
+      workflowSuccess: 0,
+      agentPerformance: 0, 
+      errorRate: 0,
+      activeWorkflows: 0
+    }
+
+    // 1. Workflow Success Rate (40% weight)
+    const completedWorkflows = workflowsArray.filter(w => 
+      w.status === WorkflowStatus.COMPLETED || w.status === ('completed' as any)
+    ).length
+    const failedWorkflows = workflowsArray.filter(w => 
+      w.status === WorkflowStatus.FAILED || w.status === ('failed' as any)
+    ).length
+    const totalTerminalWorkflows = completedWorkflows + failedWorkflows
+    
+    if (totalTerminalWorkflows > 0) {
+      factors.workflowSuccess = (completedWorkflows / totalTerminalWorkflows) * 100
+      // Deduct up to 40 points for poor workflow success rate
+      healthScore -= (100 - factors.workflowSuccess) * 0.4
+    }
+
+    // 2. Agent Performance (30% weight)
+    let totalAgents = 0
+    let successfulAgents = 0
+    let failedAgents = 0
+
+    workflowsArray.forEach(workflow => {
+      if (workflow.agents && Array.isArray(workflow.agents)) {
+        totalAgents += workflow.agents.length
+        successfulAgents += workflow.agents.filter(a => a.status === 'completed').length
+        failedAgents += workflow.agents.filter(a => a.status === 'failed' || a.status === 'timeout').length
+      }
+    })
+
+    if (totalAgents > 0) {
+      factors.agentPerformance = (successfulAgents / totalAgents) * 100
+      // Deduct up to 30 points for poor agent performance
+      healthScore -= (100 - factors.agentPerformance) * 0.3
+    }
+
+    // 3. Error Rate (20% weight)
+    const totalWorkflows = workflowsArray.length
+    const errorRate = (failedWorkflows / totalWorkflows) * 100
+    factors.errorRate = errorRate
+    // Deduct up to 20 points for high error rates
+    healthScore -= errorRate * 0.2
+
+    // 4. Active Workflows Health (10% weight)
+    const runningWorkflows = workflowsArray.filter(w => 
+      w.status === WorkflowStatus.RUNNING || w.status === ('running' as any)
+    ).length
+    const pausedWorkflows = workflowsArray.filter(w => 
+      w.status === WorkflowStatus.PAUSED || w.status === ('paused' as any)
+    ).length
+    const pendingWorkflows = workflowsArray.filter(w => 
+      w.status === WorkflowStatus.PENDING || w.status === ('pending' as any)
+    ).length
+    const activeWorkflows = runningWorkflows + pausedWorkflows + pendingWorkflows
+
+    if (activeWorkflows > 0) {
+      // Healthy if most active workflows are running (not paused/pending)
+      factors.activeWorkflows = (runningWorkflows / activeWorkflows) * 100
+      healthScore -= (100 - factors.activeWorkflows) * 0.1
+    }
+
+    // Ensure score stays within bounds
+    const finalScore = Math.max(0, Math.min(100, Math.round(healthScore)))
+    
+    // Determine status message
+    let status = 'System operational'
+    if (finalScore < 50) {
+      status = 'System degraded - multiple issues detected'
+    } else if (finalScore < 70) {
+      status = 'System experiencing some issues'
+    } else if (finalScore < 90) {
+      status = 'System mostly operational'
+    }
+
     return {
-      score: null,
-      status: 'No data available',
+      score: finalScore,
+      status,
       factors: {
-        workflowSuccess: null,
-        agentPerformance: null,
-        errorRate: null,
-        activeWorkflows: null
+        workflowSuccess: Math.round(factors.workflowSuccess * 100) / 100,
+        agentPerformance: Math.round(factors.agentPerformance * 100) / 100,
+        errorRate: Math.round(factors.errorRate * 100) / 100,
+        activeWorkflows: Math.round(factors.activeWorkflows * 100) / 100
       }
     }
   }
-
-  let healthScore = 100
-  const factors = {
-    workflowSuccess: 0,
-    agentPerformance: 0, 
-    errorRate: 0,
-    activeWorkflows: 0
-  }
-
-  // 1. Workflow Success Rate (40% weight)
-  const completedWorkflows = workflows.filter(w => 
-    w.status === WorkflowStatus.COMPLETED || w.status === ('completed' as any)
-  ).length
-  const failedWorkflows = workflows.filter(w => 
-    w.status === WorkflowStatus.FAILED || w.status === ('failed' as any)
-  ).length
-  const totalTerminalWorkflows = completedWorkflows + failedWorkflows
-  
-  if (totalTerminalWorkflows > 0) {
-    factors.workflowSuccess = (completedWorkflows / totalTerminalWorkflows) * 100
-    // Deduct up to 40 points for poor workflow success rate
-    healthScore -= (100 - factors.workflowSuccess) * 0.4
-  }
-
-  // 2. Agent Performance (30% weight)
-  let totalAgents = 0
-  let successfulAgents = 0
-  let failedAgents = 0
-
-  workflows.forEach(workflow => {
-    if (workflow.agents && Array.isArray(workflow.agents)) {
-      totalAgents += workflow.agents.length
-      successfulAgents += workflow.agents.filter(a => a.status === 'completed').length
-      failedAgents += workflow.agents.filter(a => a.status === 'failed' || a.status === 'timeout').length
-    }
-  })
-
-  if (totalAgents > 0) {
-    factors.agentPerformance = (successfulAgents / totalAgents) * 100
-    // Deduct up to 30 points for poor agent performance
-    healthScore -= (100 - factors.agentPerformance) * 0.3
-  }
-
-  // 3. Error Rate (20% weight)
-  const totalWorkflows = workflows.length
-  const errorRate = (failedWorkflows / totalWorkflows) * 100
-  factors.errorRate = errorRate
-  // Deduct up to 20 points for high error rates
-  healthScore -= errorRate * 0.2
-
-  // 4. Active Workflows Health (10% weight)
-  const runningWorkflows = workflows.filter(w => 
-    w.status === WorkflowStatus.RUNNING || w.status === ('running' as any)
-  ).length
-  const pausedWorkflows = workflows.filter(w => 
-    w.status === WorkflowStatus.PAUSED || w.status === ('paused' as any)
-  ).length
-  const pendingWorkflows = workflows.filter(w => 
-    w.status === WorkflowStatus.PENDING || w.status === ('pending' as any)
-  ).length
-  const activeWorkflows = runningWorkflows + pausedWorkflows + pendingWorkflows
-
-  if (activeWorkflows > 0) {
-    // Healthy if most active workflows are running (not paused/pending)
-    factors.activeWorkflows = (runningWorkflows / activeWorkflows) * 100
-    healthScore -= (100 - factors.activeWorkflows) * 0.1
-  }
-
-  // Ensure score stays within bounds
-  const finalScore = Math.max(0, Math.min(100, Math.round(healthScore)))
-  
-  // Determine status message
-  let status = 'System operational'
-  if (finalScore < 50) {
-    status = 'System degraded - multiple issues detected'
-  } else if (finalScore < 70) {
-    status = 'System experiencing some issues'
-  } else if (finalScore < 90) {
-    status = 'System mostly operational'
-  }
-
-  return {
-    score: finalScore,
-    status,
-    factors: {
-      workflowSuccess: Math.round(factors.workflowSuccess * 100) / 100,
-      agentPerformance: Math.round(factors.agentPerformance * 100) / 100,
-      errorRate: Math.round(factors.errorRate * 100) / 100,
-      activeWorkflows: Math.round(factors.activeWorkflows * 100) / 100
-    }
-  }
-}
+)
 
 export default workflowSlice.reducer
