@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { useWebSocket } from '../../hooks/useWebSocket'
-import { createMockStore, MockWebSocket } from '../utils-jest'
+import { createMockStore, MockWebSocket } from '../utils'
 import { WebSocketEventType, WebSocketEvent } from '../../types/websocket'
 import { WorkflowStatus } from '../../types/core'
 

@@ -10,6 +10,7 @@ export default {
     '^@/store/(.*)$': '<rootDir>/src/store/$1',
     '^@/types/(.*)$': '<rootDir>/src/types/$1',
     '^@/utils/(.*)$': '<rootDir>/src/utils/$1',
+    '^msw/node$': '<rootDir>/node_modules/msw/lib/node/index.js',
   },
   testMatch: [
     '<rootDir>/src/**/*.test.{ts,tsx}',
@@ -25,6 +26,6 @@ export default {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transformIgnorePatterns: [
-    'node_modules/(?!(.*\\.mjs$))'
+    'node_modules/(?!(msw|.*\\.mjs$))'
   ],
 } 

@@ -4,7 +4,7 @@
  */
 import { screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { render, createMockStore, createInitialState } from '../utils-jest'
+import { render, createMockStore, createInitialState } from '../utils'
 import Dashboard from '../../pages/Dashboard/Dashboard'
 import { mockWorkflows, mockAgents, mockBusinessMetrics } from '../mocks/data'
 
