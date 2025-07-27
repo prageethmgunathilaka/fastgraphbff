@@ -400,7 +400,8 @@ const agentSlice = createSlice({
         state.loading = false
         
         // Convert array to record and enhance with real-time tracking
-        action.payload.forEach(agent => {
+        const agents = action.payload.agents || []
+        agents.forEach(agent => {
           state.agents[agent.id] = {
             ...agent,
             // Initialize real-time fields if not present

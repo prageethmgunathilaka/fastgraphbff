@@ -38,12 +38,14 @@ import {
 } from '@mui/icons-material'
 import { useAppSelector, useAppDispatch } from '../../store'
 import { fetchWorkflows } from '../../store/slices/workflowSlice'
+import { fetchAgents } from '../../store/slices/agentSlice'
 import { workflowApi, agentApi } from '../../services/api'
 import { formatDistanceToNow } from 'date-fns'
 
 const Workflows: React.FC = () => {
   const dispatch = useAppDispatch()
   const { workflows, loading, error } = useAppSelector((state) => state.workflows)
+  const { agents } = useAppSelector((state) => state.agents)
   
   // Local state for create workflow dialog
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -71,10 +73,18 @@ const Workflows: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchWorkflows())
+    dispatch(fetchAgents())
   }, [dispatch])
 
   const handleRefresh = () => {
     dispatch(fetchWorkflows())
+    dispatch(fetchAgents())
+  }
+
+  // Helper function to calculate agent count for a specific workflow
+  const getAgentCountForWorkflow = (workflowId: string): number => {
+    const standaloneAgents = Object.values(agents)
+    return standaloneAgents.filter(agent => agent.workflow_id === workflowId).length
   }
 
   const handleCreateWorkflow = async () => {
@@ -463,7 +473,7 @@ const Workflows: React.FC = () => {
                     <BotIcon sx={{ fontSize: 24, mr: 1.5, color: 'primary.main' }} />
                     <Box>
                       <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1, color: 'primary.main' }}>
-                        {workflow.agents?.length || 0}
+                        {getAgentCountForWorkflow(workflow.id)}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
                         agents

@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material'
 import { useAppSelector, useAppDispatch } from '../../store'
 import { fetchWorkflows, selectActiveAgentsCount, selectAgentsByStatus, selectSystemHealth } from '../../store/slices/workflowSlice'
+import { fetchAgents } from '../../store/slices/agentSlice'
 import { 
   fetchDashboardMetrics, 
   fetchPerformanceMetrics, 
@@ -56,6 +57,9 @@ const Dashboard: React.FC = () => {
   const agentsByStatus = useAppSelector(selectAgentsByStatus)
   const systemHealth = useAppSelector(selectSystemHealth)
   
+  // Get standalone agents data
+  const { agents: standaloneAgents, loading: agentsLoading } = useAppSelector((state) => state.agents)
+  
   // Debug: Log data to console (can be removed in production)
   // React.useEffect(() => {
   //   console.log('🔍 Debug System Health Data:')
@@ -73,6 +77,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     // Fetch all data on component mount
     dispatch(fetchWorkflows())
+    dispatch(fetchAgents()) // Fetch standalone agents
     dispatch(fetchDashboardMetrics())
     dispatch(fetchPerformanceMetrics())
     dispatch(fetchBusinessMetrics())
@@ -84,7 +89,7 @@ const Dashboard: React.FC = () => {
       setApiTestResult('Testing...')
       const response = await fetch('https://jux81vgip4.execute-api.us-east-1.amazonaws.com/health')
       const data = await response.json()
-      setApiTestResult(`✅ Backend Connected! Status: ${data.status}, Models: ${data.metrics.available_models.join(', ')}`)
+      setApiTestResult(`✅ Backend Connected! Status: ${data.status}, Service: ${data.service} v${data.version}, CPU: ${data.system.cpu_percent}%, Memory: ${data.system.memory_percent}%`)
     } catch (error) {
       setApiTestResult(`❌ Connection Failed: ${error}`)
     }
@@ -105,6 +110,7 @@ const Dashboard: React.FC = () => {
   const refreshAllData = () => {
     dispatch(clearErrors())
     dispatch(fetchWorkflows())
+    dispatch(fetchAgents()) // Refresh standalone agents
     dispatch(fetchDashboardMetrics())
     dispatch(fetchPerformanceMetrics())
     dispatch(fetchBusinessMetrics())
@@ -114,6 +120,31 @@ const Dashboard: React.FC = () => {
   const runningWorkflows = workflowList.filter(w => w.status === 'running')
   const completedWorkflows = workflowList.filter(w => w.status === 'completed')
   const failedWorkflows = workflowList.filter(w => w.status === 'failed')
+  
+  // Calculate total agent count (workflow-embedded + standalone)
+  const standaloneAgentList = Object.values(standaloneAgents)
+  const totalAgentCount = activeAgentsCount + standaloneAgentList.length
+  
+  // Calculate standalone agent breakdown by status
+  const standaloneAgentsByStatus = standaloneAgentList.reduce((acc, agent) => {
+    const status = agent.status.toLowerCase()
+    if (status === 'idle') acc.idle += 1
+    else if (status === 'running' || status === 'active') acc.running += 1  
+    else if (status === 'waiting') acc.waiting += 1
+    else if (status === 'completed') acc.completed += 1
+    else if (status === 'failed') acc.failed += 1
+    return acc
+  }, { idle: 0, running: 0, waiting: 0, completed: 0, failed: 0, timeout: 0 })
+  
+  // Combined agent status counts
+  const combinedAgentsByStatus = {
+    idle: agentsByStatus.idle + standaloneAgentsByStatus.idle,
+    running: agentsByStatus.running + standaloneAgentsByStatus.running,
+    waiting: agentsByStatus.waiting + standaloneAgentsByStatus.waiting,
+    completed: agentsByStatus.completed + standaloneAgentsByStatus.completed,
+    failed: agentsByStatus.failed + standaloneAgentsByStatus.failed,
+    timeout: agentsByStatus.timeout + standaloneAgentsByStatus.timeout
+  }
   
   // Fallback system health calculation for debugging
   const calculateFallbackSystemHealth = () => {
@@ -369,13 +400,17 @@ const Dashboard: React.FC = () => {
               Backend Data Calculations:
             </Typography>
             <Typography variant="body2" component="div">
-              <strong>Active Agents (from Workflow Data):</strong>
+              <strong>Agents (Workflow + Standalone):</strong>
               <br />
-              • Total Active Agents: <strong>{activeAgentsCount}</strong>
+              • Workflow-Embedded Agents: <strong>{activeAgentsCount}</strong>
               <br />
-              • Running: {agentsByStatus.running}, Waiting: {agentsByStatus.waiting}, Idle: {agentsByStatus.idle}
+              • Standalone Agents: <strong>{standaloneAgentList.length}</strong>
               <br />
-              • Completed: {agentsByStatus.completed}, Failed: {agentsByStatus.failed}, Timeout: {agentsByStatus.timeout}
+              • <strong>Total Agent Count: {totalAgentCount}</strong>
+              <br />
+              • Combined Status - Running: {combinedAgentsByStatus.running}, Waiting: {combinedAgentsByStatus.waiting}, Idle: {combinedAgentsByStatus.idle}
+              <br />
+              • Completed: {combinedAgentsByStatus.completed}, Failed: {combinedAgentsByStatus.failed}, Timeout: {combinedAgentsByStatus.timeout}
               <br />
               <br />
               <strong>System Health (calculated from workflow/agent data):</strong>
@@ -436,12 +471,12 @@ const Dashboard: React.FC = () => {
                   <Grid item xs={12} sm={6} md={3}>
             <MetricCard
               title="Active Agents"
-              value={renderMetricValue(activeAgentsCount)}
-              subtitle={`Running: ${agentsByStatus.running}, Waiting: ${agentsByStatus.waiting}, Idle: ${agentsByStatus.idle}`}
+              value={renderMetricValue(totalAgentCount)}
+              subtitle={`Running: ${combinedAgentsByStatus.running}, Waiting: ${combinedAgentsByStatus.waiting}, Idle: ${combinedAgentsByStatus.idle}`}
               trend="stable"
               color="secondary"
               icon={<SmartToy fontSize="large" />}
-              loading={workflowsLoading}
+              loading={workflowsLoading || agentsLoading}
               error={workflowsError}
             />
           </Grid>

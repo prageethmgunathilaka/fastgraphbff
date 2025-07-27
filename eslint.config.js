@@ -21,7 +21,7 @@ export default [
       'src/test/mocks/**',
       'src/vite-env.d.ts',
       // Files with extensive console logging (development files)
-      'src/main-simple.tsx'
+      
     ]
   },
   {

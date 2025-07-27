@@ -5,10 +5,15 @@ export const getApiBaseUrl = (): string => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof (globalThis as any).import?.meta?.env !== 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (globalThis as any).import.meta.env.VITE_API_BASE_URL || 'https://api.fastgraph.example.com/v1'
+    const envUrl = (globalThis as any).import.meta.env.VITE_API_BASE_URL
+    const fallbackUrl = 'https://jux81vgip4.execute-api.us-east-1.amazonaws.com' // Updated fallback to correct URL
+    const resultUrl = envUrl || fallbackUrl
+    console.log('🔧 Environment check:', { envUrl, fallbackUrl, resultUrl }) // Debug log
+    return resultUrl
   }
-  // Fallback for test environments
-  return 'https://api.fastgraph.example.com/v1'
+  // Fallback for test environments (also updated to correct URL)
+  console.log('🔧 Using test environment fallback URL') // Debug log
+  return 'https://jux81vgip4.execute-api.us-east-1.amazonaws.com'
 }
 
 export const getWebSocketUrl = (): string => {

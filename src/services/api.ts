@@ -35,12 +35,36 @@ interface BusinessMetricsResponse {
 interface HealthResponse {
   status?: string
   timestamp?: string
-  metrics?: any
+  service?: string
+  version?: string
+  system?: {
+    cpu_percent?: number
+    memory_total_mb?: number
+    memory_used_mb?: number
+    memory_available_mb?: number
+    memory_percent?: number
+    disk_total_gb?: number
+    disk_used_gb?: number
+    disk_free_gb?: number
+    disk_percent?: number
+    timestamp?: string
+  }
+  resources?: {
+    status?: string
+    warnings?: any[]
+    system_info?: any
+    limits?: {
+      max_cpu_usage?: number
+      max_memory_usage?: number
+    }
+  }
+  uptime?: string
   [key: string]: any
 }
 
 // Base API configuration
 const API_BASE_URL = getApiBaseUrl()
+console.log('🔧 API_BASE_URL loaded:', API_BASE_URL) // Debug log
 
 class ApiClient {
   protected client: AxiosInstance
@@ -144,9 +168,9 @@ class WorkflowApi extends ApiClient {
 
 // Agent API
 class AgentApi extends ApiClient {
-  async getAgents(workflowId?: string): Promise<Agent[]> {
+  async getAgents(workflowId?: string): Promise<{agents: Agent[], total: number}> {
     const params = workflowId ? { workflowId } : {};
-    return this.get<Agent[]>('/agents', params);
+    return this.get<{agents: Agent[], total: number}>('/agents', params);
   }
 
   async getAgentById(id: string): Promise<Agent> {
@@ -154,10 +178,7 @@ class AgentApi extends ApiClient {
   }
 
   async createAgent(workflowId: string, agentData: any): Promise<Agent> {
-    return this.post<Agent>('/agents', { 
-      workflowId, 
-      ...agentData 
-    });
+    return this.post<Agent>(`/workflows/${workflowId}/agents`, agentData);
   }
 
   async deleteAgent(id: string): Promise<void> {
@@ -302,7 +323,11 @@ class AnalyticsApi extends ApiClient {
       return {
         status: response?.status || 'unknown',
         timestamp: response?.timestamp || new Date().toISOString(),
-        metrics: response?.metrics || {},
+        service: response?.service || 'Unknown Service',
+        version: response?.version || '0.0.0',
+        system: response?.system || {},
+        resources: response?.resources || {},
+        uptime: response?.uptime || '0d',
         ...response
       }
     } catch (error: any) {

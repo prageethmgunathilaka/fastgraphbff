@@ -1,6 +1,7 @@
 ﻿import React from 'react'
 import { Box, Typography, Card, CardContent, Grid } from '@mui/material'
 import Workflows from './WorkflowMonitoring/Workflows'
+import AgentManagement from './AgentManagement/AgentManagement'
 
 const Analytics: React.FC = () => (
   <Box>
@@ -23,18 +24,6 @@ const Analytics: React.FC = () => (
         </CardContent></Card>
       </Grid>
     </Grid>
-  </Box>
-)
-
-const AgentManagement: React.FC = () => (
-  <Box>
-    <Typography variant="h4" gutterBottom>Agent Management</Typography>
-    <Card><CardContent>
-      <Typography variant="h6">Interactive Agent Console</Typography>
-      <Typography variant="body2" color="text.secondary">
-        Detailed agent profiles, execution monitoring, and debugging tools
-      </Typography>
-    </CardContent></Card>
   </Box>
 )
 
