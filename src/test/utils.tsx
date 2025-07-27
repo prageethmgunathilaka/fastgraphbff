@@ -5,7 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import { CssBaseline } from '@mui/material'
 import { configureStore, Store } from '@reduxjs/toolkit'
-import { vi } from 'vitest'
+// Jest mocking functions are globally available
 
 import theme from '../theme'
 import workflowSlice from '../store/slices/workflowSlice'
@@ -104,8 +104,8 @@ export class MockWebSocket {
     }, 10)
   }
 
-  send = vi.fn()
-  close = vi.fn(() => {
+  send = jest.fn()
+  close = jest.fn(() => {
     this.readyState = MockWebSocket.CLOSED
     if (this.onclose) {
       this.onclose(new CloseEvent('close', { code: 1000, reason: 'Test close' }))
@@ -129,6 +129,13 @@ export class MockWebSocket {
     this.readyState = MockWebSocket.CLOSED
     if (this.onclose) {
       this.onclose(new CloseEvent('close', { code, reason }))
+    }
+  }
+
+  simulateOpen() {
+    this.readyState = MockWebSocket.OPEN
+    if (this.onopen) {
+      this.onopen(new Event('open'))
     }
   }
 }
