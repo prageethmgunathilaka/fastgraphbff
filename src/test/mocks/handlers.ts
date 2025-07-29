@@ -224,6 +224,22 @@ export const handlers = [
     return HttpResponse.json(agent, { status: 201 })
   }),
 
+  http.delete(`${API_BASE_URL}/agents/:id`, ({ params }) => {
+    const agentId = params.id as string
+    const agentIndex = mockAgents.findIndex(a => a.id === agentId)
+    
+    if (agentIndex === -1) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    
+    // Remove the agent from mock data
+    mockAgents.splice(agentIndex, 1)
+    console.log('🗑️ Agent deleted from mockAgents:', agentId)
+    console.log('🔧 Total agents now:', mockAgents.length)
+    
+    return new HttpResponse(null, { status: 204 })
+  }),
+
   http.get(`${API_BASE_URL}/agents/:id/logs`, ({ params, request }) => {
     const agent = mockAgents.find(a => a.id === params.id)
     if (!agent) {

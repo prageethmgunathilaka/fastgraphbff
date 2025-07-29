@@ -18,6 +18,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -25,20 +29,18 @@ import {
   Stop as StopIcon,
   Settings as SettingsIcon,
   Person as PersonIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material'
 import { agentApi } from '../../services/api'
+import { Agent } from '../../types/core'
 
-interface Agent {
-  id: string
-  name: string
-  description: string
+// Extended interface for API response format
+interface ApiAgent extends Agent {
   agent_type: string
   workflow_id: string
-  status: string
   status_description: string
   created_at: string
   last_activity: string
-  capabilities: string[]
   llm_config?: {
     provider?: string
     model?: string
@@ -49,10 +51,16 @@ interface Agent {
 }
 
 const AgentManagement: React.FC = () => {
-  const [agents, setAgents] = useState<Agent[]>([])
+  const [agents, setAgents] = useState<ApiAgent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  
+  // Delete agent state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [agentToDelete, setAgentToDelete] = useState<ApiAgent | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const fetchAgents = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true)
@@ -61,7 +69,7 @@ const AgentManagement: React.FC = () => {
 
     try {
       const response = await agentApi.getAgents()
-      setAgents(response.agents || [])
+      setAgents((response.agents || []) as ApiAgent[])
     } catch (err: any) {
       console.error('Failed to fetch agents:', err)
       setError(err?.message || 'Failed to load agents')
@@ -81,16 +89,17 @@ const AgentManagement: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'active':
       case 'running':
         return 'success'
       case 'idle':
         return 'default'
-      case 'error':
       case 'failed':
+      case 'timeout':
         return 'error'
-      case 'paused':
+      case 'waiting':
         return 'warning'
+      case 'completed':
+        return 'success'
       default:
         return 'default'
     }
@@ -98,6 +107,43 @@ const AgentManagement: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString()
+  }
+
+  const handleOpenDeleteAgent = (agent: ApiAgent) => {
+    setAgentToDelete(agent)
+    setDeleteError(null)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleCloseDeleteAgent = () => {
+    setDeleteDialogOpen(false)
+    setAgentToDelete(null)
+    setDeleteError(null)
+  }
+
+  const handleDeleteAgent = async () => {
+    if (!agentToDelete) return
+    
+    setDeleteLoading(true)
+    setDeleteError(null)
+    
+    try {
+      console.log('🗑️ Deleting agent:', agentToDelete.id)
+      await agentApi.deleteAgent(agentToDelete.id)
+      console.log('✅ Agent deleted successfully')
+      
+      // Close dialog
+      handleCloseDeleteAgent()
+      
+      // Refresh agents list
+      fetchAgents(true)
+      
+    } catch (error) {
+      console.error('❌ Error deleting agent:', error)
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete agent')
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   if (loading) {
@@ -304,13 +350,21 @@ const AgentManagement: React.FC = () => {
                     <Box display="flex">
                       <IconButton
                         size="small"
-                        color={agent.status === 'active' ? 'error' : 'success'}
-                        title={agent.status === 'active' ? 'Stop Agent' : 'Start Agent'}
+                        color={agent.status === 'running' ? 'error' : 'success'}
+                        title={agent.status === 'running' ? 'Stop Agent' : 'Start Agent'}
                       >
-                        {agent.status === 'active' ? <StopIcon /> : <PlayIcon />}
+                        {agent.status === 'running' ? <StopIcon /> : <PlayIcon />}
                       </IconButton>
                       <IconButton size="small" color="primary" title="Settings">
                         <SettingsIcon />
+                      </IconButton>
+                      <IconButton 
+                        size="small" 
+                        color="error" 
+                        title="Delete Agent"
+                        onClick={() => handleOpenDeleteAgent(agent)}
+                      >
+                        <DeleteIcon />
                       </IconButton>
                     </Box>
                   </TableCell>
@@ -320,6 +374,67 @@ const AgentManagement: React.FC = () => {
           </Table>
         </TableContainer>
       )}
+      
+      {/* Delete Agent Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={handleCloseDeleteAgent}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: 'error.main' }}>
+          Delete Agent
+        </DialogTitle>
+        <DialogContent>
+          {deleteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {deleteError}
+            </Alert>
+          )}
+          
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete this agent? This action cannot be undone.
+          </Typography>
+          
+          {agentToDelete && (
+            <Box sx={{ p: 2, backgroundColor: 'grey.100', borderRadius: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Agent to delete:
+              </Typography>
+              <Typography variant="body2">
+                <strong>{agentToDelete.name}</strong>
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {agentToDelete.description}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                ID: {agentToDelete.id}
+              </Typography>
+            </Box>
+          )}
+          
+          <Typography variant="body2" color="error.main" sx={{ mt: 2, fontWeight: 500 }}>
+            ⚠️ This will permanently delete the agent and all its associated data.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleCloseDeleteAgent}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleDeleteAgent}
+            variant="contained"
+            color="error"
+            disabled={deleteLoading}
+            startIcon={<DeleteIcon />}
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete Agent'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
