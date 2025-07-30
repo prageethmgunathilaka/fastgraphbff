@@ -34,6 +34,12 @@ export const handlers = [
       return new HttpResponse(null, { status: 404 })
     }
     
+    // Return 404 for soft-deleted workflows (simulate backend behavior)
+    if (workflow.is_deleted || workflow.deleted_at) {
+      console.log(`🗑️ Mock: GET /workflows/${params.id} returning 404 (workflow is soft-deleted)`)
+      return new HttpResponse(null, { status: 404 })
+    }
+    
     // Enhance workflow with agent data
     const workflowAgents = mockAgents.filter(agent => agent.workflowId === workflow.id)
     const enhancedWorkflow = {
@@ -122,6 +128,68 @@ export const handlers = [
     
     // Return simple string response as per real API spec
     return HttpResponse.json(`Workflow ${workflowId} execution started`)
+  }),
+
+  // Workflow cancel endpoint
+  http.post(`${API_BASE_URL}/workflows/:id/cancel`, ({ params }) => {
+    const workflowId = params.id as string
+    const workflowIndex = mockWorkflows.findIndex(w => w.id === workflowId)
+    
+    if (workflowIndex === -1) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    
+    // Update the workflow status to cancelled
+    mockWorkflows[workflowIndex] = {
+      ...mockWorkflows[workflowIndex],
+      status: 'cancelled',
+      updatedAt: new Date().toISOString()
+    }
+    
+    console.log(`✅ Mock: Workflow ${workflowId} cancelled successfully`)
+    return new HttpResponse(null, { status: 200 })
+  }),
+
+  // Workflow status update endpoint
+  http.put(`${API_BASE_URL}/workflows/:id/status`, async ({ params, request }) => {
+    const workflowId = params.id as string
+    const { status } = await request.json() as { status: string }
+    const workflowIndex = mockWorkflows.findIndex(w => w.id === workflowId)
+    
+    if (workflowIndex === -1) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    
+    // Update the workflow status
+    mockWorkflows[workflowIndex] = {
+      ...mockWorkflows[workflowIndex],
+      status,
+      updatedAt: new Date().toISOString()
+    }
+    
+    console.log(`✅ Mock: Workflow ${workflowId} status updated to ${status}`)
+    return new HttpResponse(null, { status: 200 })
+  }),
+
+  // Reset workflow status endpoint (for testing run button)
+  http.post(`${API_BASE_URL}/workflows/:id/reset`, ({ params }) => {
+    const workflowId = params.id as string
+    const workflowIndex = mockWorkflows.findIndex(w => w.id === workflowId)
+    
+    if (workflowIndex === -1) {
+      return new HttpResponse(null, { status: 404 })
+    }
+    
+    // Reset the workflow status to pending for testing
+    mockWorkflows[workflowIndex] = {
+      ...mockWorkflows[workflowIndex],
+      status: 'pending',
+      progress: 0,
+      updatedAt: new Date().toISOString()
+    }
+    
+    console.log(`🔄 Mock: Workflow ${workflowId} status reset to pending for testing`)
+    return HttpResponse.json({ message: `Workflow ${workflowId} status reset to pending` })
   }),
 
   // Agent endpoints

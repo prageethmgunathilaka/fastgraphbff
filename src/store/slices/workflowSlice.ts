@@ -23,6 +23,12 @@ interface WorkflowState {
     lastStatusChange: string
     updatesReceived: number
     activeUpdates: string[] // IDs of workflows currently receiving updates
+    progressHistory: Record<string, Array<{
+      timestamp: string
+      progress: number
+      phase?: string
+      estimatedTimeRemaining?: number
+    }>>
   }
   progressHistory: Record<string, Array<{
     timestamp: string
@@ -30,6 +36,12 @@ interface WorkflowState {
     phase?: string
     estimatedTimeRemaining?: number
   }>>
+  
+  // Track recently cancelled workflows to prevent reappearance on refresh
+  recentlyDeleted: {
+    workflowIds: string[]
+    timestamp: number
+  }
 }
 
 const initialState: WorkflowState = {
@@ -53,8 +65,15 @@ const initialState: WorkflowState = {
     lastStatusChange: '',
     updatesReceived: 0,
     activeUpdates: [],
+    progressHistory: {},
   },
   progressHistory: {},
+  
+  // Track recently cancelled workflows to prevent reappearance on refresh
+  recentlyDeleted: {
+    workflowIds: [],
+    timestamp: 0,
+  },
 }
 
 // Async thunks
@@ -93,7 +112,9 @@ export const updateWorkflow = createAsyncThunk(
 export const deleteWorkflow = createAsyncThunk(
   'workflows/deleteWorkflow',
   async (workflowId: string) => {
-    await workflowApi.deleteWorkflow(workflowId)
+    console.log('🗑️ DEBUG: Sending delete request for workflow:', workflowId)
+    const response = await workflowApi.deleteWorkflow(workflowId)
+    console.log('🗑️ DEBUG: Delete workflow response:', response)
     return workflowId
   }
 )
@@ -283,20 +304,24 @@ const workflowSlice = createSlice({
       state.error = null
     },
 
-    clearProgressHistory: (state, action: PayloadAction<string>) => {
-      const workflowId = action.payload
-      if (state.progressHistory[workflowId]) {
-        delete state.progressHistory[workflowId]
+    clearProgressHistory: (state, action: PayloadAction<string | undefined>) => {
+      if (action.payload) {
+        // Clear for specific workflow
+        delete state.progressHistory[action.payload]
+      } else {
+        // Clear all
+        state.progressHistory = {}
       }
     },
 
     resetRealTimeStats: (state) => {
-      state.realTimeUpdates = {
-        lastProgressUpdate: '',
-        lastStatusChange: '',
-        updatesReceived: 0,
-        activeUpdates: [],
-      }
+      state.realTimeUpdates.progressHistory = {}
+    },
+    
+    // Clear recently deleted workflows (for manual refresh/override)
+    clearRecentlyDeleted: (state) => {
+      state.recentlyDeleted.workflowIds = []
+      state.recentlyDeleted.timestamp = 0
     },
   },
   extraReducers: (builder) => {
@@ -315,8 +340,66 @@ const workflowSlice = createSlice({
           return
         }
         
+        // DEBUG: Log all workflows returned by backend
+        console.log('🔍 DEBUG: All workflows returned by backend:', action.payload.workflows.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          status: w.status,
+          is_deleted: w.is_deleted,
+          deleted_at: w.deleted_at,
+          isDeleted: w.isDeleted,
+          deletedAt: w.deletedAt
+        })))
+        
+        // Filter out deleted/cancelled workflows before processing
+        const activeWorkflows = action.payload.workflows.filter((workflow: any) => {
+          // Check if workflow was recently deleted (within last 5 minutes)
+          const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+          if (state.recentlyDeleted.timestamp > fiveMinutesAgo && 
+              state.recentlyDeleted.workflowIds.includes(workflow.id)) {
+            console.log(`🗑️ Filtering out recently deleted workflow: ${workflow.id}`)
+            return false
+          }
+          
+          // Check all possible soft delete indicators (excluding cancelled - those should show)
+          const isDeleted = workflow.status === 'deleted' || 
+                           workflow.status === 'inactive' ||
+                           workflow.is_deleted === true ||
+                           workflow.deleted_at != null ||
+                           workflow.isDeleted === true ||
+                           workflow.deletedAt != null
+          
+          if (isDeleted) {
+            console.log(`🗑️ DEBUG: Filtering out workflow ${workflow.id}:`, {
+              status: workflow.status,
+              is_deleted: workflow.is_deleted,
+              deleted_at: workflow.deleted_at,
+              isDeleted: workflow.isDeleted,
+              deletedAt: workflow.deletedAt,
+              reason: workflow.status === 'deleted' ? 'status=deleted' :
+                     workflow.status === 'cancelled' ? 'status=cancelled' :
+                     workflow.status === 'inactive' ? 'status=inactive' :
+                     workflow.is_deleted === true ? 'is_deleted=true' :
+                     workflow.deleted_at != null ? 'deleted_at not null' :
+                     workflow.isDeleted === true ? 'isDeleted=true' :
+                     workflow.deletedAt != null ? 'deletedAt not null' : 'unknown'
+            })
+          }
+          
+          return !isDeleted
+        })
+        
+        console.log(`🔍 DEBUG: Filtered ${action.payload.workflows.length} workflows down to ${activeWorkflows.length} active workflows`)
+        
+        // Clean up old recently deleted entries (older than 5 minutes)
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+        if (state.recentlyDeleted.timestamp < fiveMinutesAgo) {
+          state.recentlyDeleted.workflowIds = []
+          state.recentlyDeleted.timestamp = 0
+        }
+        
         // Convert array to record and enhance with real-time tracking
-        const workflowsRecord = action.payload.workflows.reduce((acc, workflow: any) => {
+        const workflowsRecord = activeWorkflows.reduce((acc, workflow: any) => {
           // Transform backend data format to frontend format
           const transformedWorkflow: Workflow = {
             ...workflow,
@@ -353,7 +436,8 @@ const workflowSlice = createSlice({
         }, {} as Record<string, Workflow>)
         
         state.workflows = workflowsRecord
-        state.pagination.total = action.payload.total
+        // Update pagination total to reflect filtered count (exclude deleted workflows)
+        state.pagination.total = activeWorkflows.length
       })
       .addCase(fetchWorkflows.rejected, (state, action) => {
         state.loading = false
@@ -398,6 +482,13 @@ const workflowSlice = createSlice({
       // Delete workflow cases
       .addCase(deleteWorkflow.fulfilled, (state, action) => {
         const workflowId = action.payload
+        
+        // Track this workflow as recently deleted to prevent reappearance
+        if (!state.recentlyDeleted.workflowIds.includes(workflowId)) {
+          state.recentlyDeleted.workflowIds.push(workflowId)
+        }
+        state.recentlyDeleted.timestamp = Date.now()
+        
         delete state.workflows[workflowId]
         
         // Clean up related data
@@ -427,6 +518,7 @@ export const {
   clearError,
   clearProgressHistory,
   resetRealTimeStats,
+  clearRecentlyDeleted,
 } = workflowSlice.actions
 
 // Enhanced selectors

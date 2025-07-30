@@ -421,6 +421,10 @@ export const useWebSocket = () => {
 
   // Enhanced connection with better error reporting
   const connect = useCallback(() => {
+    // TEMPORARILY DISABLED - WebSocket backend not available
+    console.warn('🔌 WebSocket connect() called but connection is disabled')
+    return
+    
     // Check if WebSocket is already open - handle undefined WebSocket.OPEN in tests
     if (wsRef.current && wsRef.current.readyState === 1) { // 1 = OPEN state
       return
@@ -576,9 +580,14 @@ export const useWebSocket = () => {
     return { ...eventProcessingStatsRef.current }
   }, [])
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection - TEMPORARILY DISABLED
   useEffect(() => {
-    connect()
+    // WebSocket disabled due to backend endpoint not being available
+    console.warn('🔌 WebSocket connection disabled - backend WebSocket endpoint not available')
+    dispatch(connectionStatusChanged(ConnectionStatus.DISCONNECTED))
+    
+    // Uncomment the line below when backend WebSocket support is added
+    // connect()
 
     return () => {
       disconnect()

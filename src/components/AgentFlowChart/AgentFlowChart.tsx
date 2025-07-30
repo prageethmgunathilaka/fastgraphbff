@@ -8,7 +8,6 @@ import {
   useNodesState,
   useEdgesState,
   Controls,
-  MiniMap,
   Background,
   BackgroundVariant,
   NodeProps,
@@ -24,12 +23,27 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Fab,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
   Error as ErrorIcon,
   CheckCircle as IdleIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Info as InfoIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { Agent, AgentStatus } from '../../types/core';
 
@@ -43,6 +57,8 @@ interface AgentFlowChartProps {
   onAgentDisconnect?: (source: string, target: string) => void;
   onNodeClick?: (agent: Agent) => void;
   onLoadConnections?: (agentId: string) => Promise<any[]>;
+  onAddAgent?: (position: { x: number; y: number }, agentData: Partial<Agent>) => void;
+  onAgentDelete?: (agentId: string) => void;
 }
 
 // Custom Agent Node Component
@@ -176,6 +192,8 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
   onAgentDisconnect,
   onNodeClick,
   onLoadConnections,
+  onAddAgent,
+  onAgentDelete,
 }) => {
   // Convert agents to React Flow nodes
   const initialNodes: Node[] = useMemo(
@@ -201,6 +219,20 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [loadingConnections, setLoadingConnections] = React.useState(false);
+  
+  // Add Agent Dialog State
+  const [addAgentDialogOpen, setAddAgentDialogOpen] = React.useState(false);
+  const [newAgentPosition, setNewAgentPosition] = React.useState({ x: 0, y: 0 });
+  const [newAgentData, setNewAgentData] = React.useState({
+    name: '',
+    description: '',
+    capabilities: '',
+  });
+
+  // Context Menu State
+  const [contextMenuOpen, setContextMenuOpen] = React.useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = React.useState({ x: 0, y: 0 });
+  const [selectedAgent, setSelectedAgent] = React.useState<Agent | null>(null);
 
   // Load existing connections from backend
   const loadExistingConnections = useCallback(async () => {
@@ -359,23 +391,129 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
     [onNodeClick]
   );
 
+  // Handle canvas double-click to add agent
+  const onPaneDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (!onAddAgent) return;
+      
+      // Get the canvas position from the click event
+      const reactFlowBounds = (event.target as HTMLElement).closest('.react-flow')?.getBoundingClientRect();
+      if (!reactFlowBounds) return;
+
+      const position = {
+        x: event.clientX - reactFlowBounds.left - 125, // Center the node (250px width / 2)
+        y: event.clientY - reactFlowBounds.top - 100,  // Center the node vertically
+      };
+
+      setNewAgentPosition(position);
+      setAddAgentDialogOpen(true);
+    },
+    [onAddAgent]
+  );
+
+  // Handle add agent form submission
+  const handleAddAgent = useCallback(() => {
+    if (!onAddAgent || !newAgentData.name.trim()) return;
+
+    const agentData: Partial<Agent> = {
+      name: newAgentData.name.trim(),
+      description: newAgentData.description.trim() || undefined,
+      capabilities: newAgentData.capabilities.trim() ? newAgentData.capabilities.split(',').map(c => c.trim()) : undefined,
+      status: AgentStatus.IDLE,
+    };
+
+    onAddAgent(newAgentPosition, agentData);
+    
+    // Reset form and close dialog
+    setNewAgentData({ name: '', description: '', capabilities: '' });
+    setAddAgentDialogOpen(false);
+  }, [onAddAgent, newAgentPosition, newAgentData]);
+
+  // Handle dialog close
+  const handleCloseAddDialog = useCallback(() => {
+    setAddAgentDialogOpen(false);
+    setNewAgentData({ name: '', description: '', capabilities: '' });
+  }, []);
+
+  // Handle node right-click to show context menu
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: any) => {
+    event.preventDefault();
+    
+    const agent = node.data.agent;
+    if (!agent) return;
+    
+    // Set the selected agent and show context menu at cursor position
+    setSelectedAgent(agent);
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    setContextMenuOpen(true);
+  }, []);
+
+  // Handle context menu close
+  const handleContextMenuClose = useCallback(() => {
+    setContextMenuOpen(false);
+    setSelectedAgent(null);
+  }, []);
+
+  // Handle delete from context menu
+  const handleDeleteFromContextMenu = useCallback(() => {
+    if (!selectedAgent || !onAgentDelete) return;
+    
+    const confirmDelete = window.confirm(
+      `🗑️ Delete Agent?\n\nAgent: ${selectedAgent.name || 'Unnamed Agent'}\nID: ${selectedAgent.id?.substring(0, 8)}...\n\nThis action cannot be undone.`
+    );
+    
+    if (confirmDelete) {
+      console.log(`🗑️ Deleting agent: ${selectedAgent.id} (${selectedAgent.name})`);
+      onAgentDelete(selectedAgent.id);
+    }
+    
+    handleContextMenuClose();
+  }, [selectedAgent, onAgentDelete, handleContextMenuClose]);
+
+  // Handle Delete key for selected agents
+  const onNodesDelete = useCallback((nodesToDelete: any[]) => {
+    if (!onAgentDelete) return;
+    
+    console.log(`🗑️ Deleting ${nodesToDelete.length} selected agent(s)`);
+    
+    // Show confirmation for multiple agents
+    if (nodesToDelete.length > 1) {
+      const agentNames = nodesToDelete.map(node => node.data.agent?.name || 'Unnamed').join(', ');
+      const confirmDelete = window.confirm(
+        `🗑️ Delete ${nodesToDelete.length} Agents?\n\nAgents: ${agentNames}\n\nThis action cannot be undone.`
+      );
+      
+      if (!confirmDelete) return;
+    }
+    
+    nodesToDelete.forEach(node => {
+      const agent = node.data.agent;
+      if (agent?.id) {
+        console.log(`🗑️ Deleting agent: ${agent.id} (${agent.name})`);
+        onAgentDelete(agent.id);
+      }
+    });
+  }, [onAgentDelete]);
+
   // Update nodes when agents change
   React.useEffect(() => {
-    const updatedNodes = agents.map((agent, index) => ({
-      id: agent.id,
-      type: 'agentNode',
-      position: nodes.find(n => n.id === agent.id)?.position || {
-        x: (index % 3) * 320 + 50,
-        y: Math.floor(index / 3) * 200 + 50,
-      },
-      data: {
-        agent,
-        label: agent.name || 'Agent',
-      },
-      draggable: true,
-    }));
-    setNodes(updatedNodes);
-  }, [agents, setNodes]);
+    setNodes(currentNodes => {
+      const updatedNodes = agents.map((agent, index) => ({
+        id: agent.id,
+        type: 'agentNode',
+        position: currentNodes.find(n => n.id === agent.id)?.position || {
+          x: (index % 3) * 320 + 50,
+          y: Math.floor(index / 3) * 200 + 50,
+        },
+        data: {
+          agent,
+          label: agent.name || 'Agent',
+        },
+        draggable: true,
+      }));
+      return updatedNodes;
+    });
+  }, [agents]);
 
   // Load existing connections when component mounts or agents change
   // Use a stable string of agent IDs to avoid frequent refreshes
@@ -412,26 +550,6 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
     }
   }, [agentIds, hasLoadedConnections]); // Only depend on agent IDs, not loadExistingConnections
 
-  if (agents.length === 0) {
-    return (
-      <Box
-        sx={{
-          height: 300,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '2px dashed #e0e0e0',
-          borderRadius: 1,
-          backgroundColor: '#fafafa',
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          No agents assigned to this workflow yet
-        </Typography>
-      </Box>
-    );
-  }
-
   return (
     <Box sx={{ height: 400, border: '1px solid #e0e0e0', borderRadius: 1, position: 'relative' }}>
       {/* DEBUG: Manual controls for testing */}
@@ -458,7 +576,7 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
           Nodes: {nodes.length} | Edges: {edges.length} | Loaded: {hasLoadedConnections ? '✅' : '❌'}
         </span>
         <span style={{ fontSize: '12px', color: '#999', marginLeft: '16px' }}>
-          💡 Right-click connections to delete • Select and press Del key
+          💡 Double-click to add agent • Right-click agents/connections to delete • Select and press Del key
         </span>
       </Box>
       
@@ -482,15 +600,18 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
           </Typography>
         </Box>
       )}
-      <ReactFlow
+              <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClickHandler}
+        onNodeContextMenu={onNodeContextMenu}
+        onNodesDelete={onNodesDelete}
         onEdgeContextMenu={onEdgeContextMenu}
         onEdgesDelete={onEdgesDelete}
+        onPaneDoubleClick={onPaneDoubleClick}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{
@@ -499,13 +620,157 @@ const AgentFlowChart: React.FC<AgentFlowChartProps> = ({
         style={{ height: 'calc(100% - 50px)' }} // Account for debug controls
       >
         <Controls />
-        <MiniMap 
-          nodeStrokeColor="#1976d2"
-          nodeColor="#e3f2fd"
-          nodeBorderRadius={2}
-        />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
+
+      {/* Empty State Overlay */}
+      {agents.length === 0 && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            zIndex: 500,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            padding: 3,
+            borderRadius: 2,
+            border: '2px dashed #e0e0e0',
+            maxWidth: 300,
+          }}
+        >
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+            No agents yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Get started by adding your first agent to this workflow
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            💡 Double-click anywhere or use the + button
+          </Typography>
+        </Box>
+      )}
+
+      {/* Floating Add Button */}
+      {onAddAgent && (
+        <Fab
+          color="primary"
+          aria-label="add agent"
+          sx={{
+            position: 'absolute',
+            bottom: 16,
+            right: 16,
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setNewAgentPosition({ x: 100, y: 100 });
+            setAddAgentDialogOpen(true);
+          }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
+
+      {/* Add Agent Dialog */}
+      <Dialog 
+        open={addAgentDialogOpen} 
+        onClose={handleCloseAddDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add New Agent</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              autoFocus
+              label="Agent Name"
+              placeholder="Enter agent name"
+              value={newAgentData.name}
+              onChange={(e) => setNewAgentData(prev => ({ ...prev, name: e.target.value }))}
+              fullWidth
+              required
+            />
+            <TextField
+              label="Description"
+              placeholder="What does this agent do?"
+              value={newAgentData.description}
+              onChange={(e) => setNewAgentData(prev => ({ ...prev, description: e.target.value }))}
+              multiline
+              rows={2}
+              fullWidth
+            />
+            <TextField
+              label="Capabilities"
+              placeholder="data_analysis, web_scraping, etc. (comma-separated)"
+              value={newAgentData.capabilities}
+              onChange={(e) => setNewAgentData(prev => ({ ...prev, capabilities: e.target.value }))}
+              fullWidth
+              helperText="Enter capabilities separated by commas"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAddDialog}>Cancel</Button>
+          <Button 
+            onClick={handleAddAgent} 
+            variant="contained"
+            disabled={!newAgentData.name.trim()}
+          >
+            Add Agent
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Agent Context Menu */}
+      <Menu
+        open={contextMenuOpen}
+        onClose={handleContextMenuClose}
+        anchorReference="anchorPosition"
+        anchorPosition={{
+          top: contextMenuPosition.y,
+          left: contextMenuPosition.x,
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              minWidth: 200,
+            },
+          },
+        }}
+      >
+        <MenuItem onClick={() => {
+          if (selectedAgent && onNodeClick) {
+            onNodeClick(selectedAgent);
+          }
+          handleContextMenuClose();
+        }}>
+          <ListItemIcon>
+            <InfoIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>View Details</ListItemText>
+        </MenuItem>
+        
+        <MenuItem onClick={() => {
+          // Future: Edit agent functionality
+          handleContextMenuClose();
+        }}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Agent</ListItemText>
+        </MenuItem>
+        
+        <MenuItem 
+          onClick={handleDeleteFromContextMenu}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
+          </ListItemIcon>
+          <ListItemText>Delete Agent</ListItemText>
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };

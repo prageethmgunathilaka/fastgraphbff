@@ -92,6 +92,19 @@ const agentSlice = createSlice({
       state.selectedAgentId = action.payload
     },
 
+    removeAgent: (state, action: PayloadAction<string>) => {
+      const agentId = action.payload
+      console.log(`🗑️ Redux: Removing agent ${agentId} from state`)
+      delete state.agents[agentId]
+      delete state.performanceStats[agentId]
+      delete state.logHistory[agentId]
+      
+      // Clear selected agent if it was the one being deleted
+      if (state.selectedAgentId === agentId) {
+        state.selectedAgentId = null
+      }
+    },
+
     updateAgentStatus: (state, action: PayloadAction<{ 
       agentId: string
       status: AgentStatus
@@ -474,21 +487,6 @@ const agentSlice = createSlice({
   },
 })
 
-export const {
-  selectAgent,
-  updateAgentStatus,
-  updateAgentProgress,
-  addLogEntry,
-  addResult,
-  batchUpdateAgents,
-  setAgentActiveUpdate,
-  clearAgentLogs,
-  clearPerformanceStats,
-  setFilters,
-  clearError,
-  resetRealTimeStats,
-} = agentSlice.actions
-
 // Enhanced selectors
 export const selectAgents = (state: { agents: AgentState }) => state.agents.agents
 export const selectAgentById = (id: string) => (state: { agents: AgentState }) => 
@@ -590,5 +588,21 @@ export const selectRecentLogs = (agentId: string, minutes: number = 5) => (state
     new Date(log.timestamp).getTime() > cutoffTime
   )
 }
+
+export const { 
+  selectAgent, 
+  removeAgent, 
+  updateAgentStatus, 
+  updateAgentProgress, 
+  addLogEntry, 
+  addResult, 
+  batchUpdateAgents, 
+  setAgentActiveUpdate, 
+  clearAgentLogs, 
+  clearPerformanceStats, 
+  setFilters, 
+  clearError, 
+  resetRealTimeStats 
+} = agentSlice.actions
 
 export default agentSlice.reducer
