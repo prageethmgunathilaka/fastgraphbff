@@ -126,7 +126,7 @@ jobs:
       continue-on-error: true
       
     - name: Run dependency vulnerability check
-      uses: actions/dependency-review-action@v3
+      uses: actions/dependency-review-action@v4
       if: github.event_name == 'pull_request'
 
   # Bundle analysis job (optional, runs on main branch)
